@@ -477,17 +477,58 @@
             const canvas = document.getElementById("maze-canvas");
             const ctx = canvas.getContext("2d");
 
-            // Kích thước mê cung (giảm số lượng phòng)
-            const N = 15; // Kích thước lưới
-            const SPEED = 1; // Bước di chuyển
-            const CELL_SIZE = 40; // Kích thước ô
+            // ═══════════════════════════════════════════════════════════════
+            // GAME BALANCE CONFIGURATION
+            // ═══════════════════════════════════════════════════════════════
+            const GAME_CONFIG = {
+                // Cấu hình mê cung
+                MAZE_SIZE: 15, // Kích thước lưới mê cung (NxN)
+                CELL_SIZE: 40, // Kích thước pixel của mỗi ô
+                SPEED: 1, // Bước di chuyển mỗi lần
 
-            // Cấu hình game
-            const MAX_LIVES = 3;
-            const WALL_BYPASS_COST = 10;
-            const MAX_EVENTS = 10; // Tổng số phòng sự kiện
-            const QUESTIONS_MIN = 5; // Tối thiểu câu trả lời đúng để qua phòng
-            const QUESTIONS_MAX = 10; // Tổng câu hỏi tối đa trong 1 phòng
+                // Cấu hình người chơi
+                MAX_LIVES: 3, // Số mạng tối đa
+
+                // Cấu hình điểm số
+                BASE_POINTS: 10, // Điểm cơ bản mỗi câu hỏi
+                EAST_BONUS_POINTS: 15, // Điểm thưởng khi chọn hướng Đông
+                MIN_POINTS_PER_QUESTION: 1, // Điểm tối thiểu mỗi câu (sau penalty)
+
+                // Cấu hình phần thưởng
+                TREASURE_SMALL_REWARD: 20, // Điểm thưởng rương nhỏ
+                TREASURE_BIG_REWARD: 50, // Điểm thưởng rương lớn
+                DICE_BET_COST: 5, // Chi phí chơi xúc xắc
+                DICE_WIN_REWARD: 10, // Phần thưởng thắng xúc xắc (5 cược + 5 thắng)
+
+                // Cấu hình tường và di chuyển
+                WALL_BYPASS_COST: 5, // Chi phí xuyên tường
+
+                // Cấu hình câu hỏi và chương
+                TOTAL_CHAPTERS: 6, // Tổng số chương
+                QUESTIONS_PER_CHAPTER: 10, // Số câu hỏi mỗi chương
+                MIN_CORRECT_TO_PROGRESS: 5, // Số câu đúng tối thiểu để qua chương
+                MAX_EVENTS_PER_MAZE: 10, // Tổng số sự kiện mỗi mê cung
+
+                // Cấu hình các loại sự kiện
+                MIN_REWARDS_PER_MAZE: 1, // Số rương thưởng tối thiểu mỗi mê cung
+                MAX_REWARDS_PER_MAZE: 3, // Số rương thưởng tối đa mỗi mê cung
+                SHIELDS_PER_MAZE: 2, // Số khiên mỗi mê cung
+                EXTRA_SHIELDS_WEST: 2, // Khiên thêm khi chọn hướng Tây
+                EXTRA_SHIELDS_SOUTH: 1, // Khiên thêm khi chọn hướng Nam
+
+                // Cấu hình xúc xắc
+                DICE_SIDES: 6, // Số mặt xúc xắc
+            };
+
+            // Sử dụng các giá trị cấu hình (để tương thích ngược)
+            const N = GAME_CONFIG.MAZE_SIZE;
+            const SPEED = GAME_CONFIG.SPEED;
+            const CELL_SIZE = GAME_CONFIG.CELL_SIZE;
+            const MAX_LIVES = GAME_CONFIG.MAX_LIVES;
+            const WALL_BYPASS_COST = GAME_CONFIG.WALL_BYPASS_COST;
+            const MAX_EVENTS = GAME_CONFIG.MAX_EVENTS_PER_MAZE;
+            const QUESTIONS_MIN = GAME_CONFIG.MIN_CORRECT_TO_PROGRESS;
+            const QUESTIONS_MAX = GAME_CONFIG.QUESTIONS_PER_CHAPTER;
 
             // Hằng số Icon (SVG)
             // LƯU Ý: Đây là mã SVG/HTML, được chèn vào canvas thông qua DOM hoặc drawImage
@@ -547,7 +588,7 @@
 
             // Ver4-style room system - 6 chapters
             let currentRoomIndex = 1; // starts at room 1/6
-            let totalRooms = 6;
+            let totalRooms = GAME_CONFIG.TOTAL_CHAPTERS;
             let roomData = null;
             let chapterQuestionsCorrect = 0; // Track correct answers in current chapter
 
@@ -1310,13 +1351,21 @@
                 }
 
                 // Add 1-2 reward chests per maze
-                const rewardCount = Math.floor(Math.random() * 2) + 1; // 1 or 2 rewards
+                const rewardCount =
+                    Math.floor(
+                        Math.random() *
+                            (GAME_CONFIG.MAX_REWARDS_PER_MAZE -
+                                GAME_CONFIG.MIN_REWARDS_PER_MAZE +
+                                1)
+                    ) + GAME_CONFIG.MIN_REWARDS_PER_MAZE;
                 for (let i = 0; i < rewardCount; i++) {
                     baseEventTypes.push(3);
                 }
 
-                // Add some shields
-                baseEventTypes.push(4, 4);
+                // Add shields
+                for (let i = 0; i < GAME_CONFIG.SHIELDS_PER_MAZE; i++) {
+                    baseEventTypes.push(4);
+                }
 
                 // Add exit event for final chapter
                 if (currentRoomIndex === totalRooms) {
@@ -1331,10 +1380,14 @@
                     if (rewardCount === 1) baseEventTypes.push(3);
                 } else if (chosenDirection === "west") {
                     // Add more shields (for safety)
-                    baseEventTypes.push(4, 4);
+                    for (let i = 0; i < GAME_CONFIG.EXTRA_SHIELDS_WEST; i++) {
+                        baseEventTypes.push(4);
+                    }
                 } else if (chosenDirection === "south") {
-                    // Balanced distribution - add one extra shield
-                    baseEventTypes.push(4);
+                    // Balanced distribution - add extra shields
+                    for (let i = 0; i < GAME_CONFIG.EXTRA_SHIELDS_SOUTH; i++) {
+                        baseEventTypes.push(4);
+                    }
                 }
 
                 let placedCount = 0;
@@ -1951,35 +2004,7 @@
                     }
                 }
 
-                // If bypassFlag not on, fallback to normal modal asking to spend points
-                if (player.score >= WALL_BYPASS_COST) {
-                    openModalMsg(
-                        "Xuyên Tường Thành Công!",
-                        `Bạn có thể sử dụng **${WALL_BYPASS_COST} điểm** để xuyên qua bức tường.`,
-                        [
-                            {
-                                text: "OK",
-                                action: () => {
-                                    // Cập nhật state và di chuyển
-                                    player.score -= WALL_BYPASS_COST;
-                                    maze[ny][nx] = 0; // Biến tường thành đường đi
-                                    player.x = nx;
-                                    player.y = ny;
-                                    updateHUD();
-                                    draw();
-                                    closeModal();
-                                    // Kiểm tra sự kiện ngay sau khi bước vào
-                                    stepOn(nx, ny);
-                                },
-                            },
-                        ]
-                    );
-                } else {
-                    openModalMsg(
-                        "Không đủ điểm!",
-                        `Bạn cần **${WALL_BYPASS_COST} điểm** để có thể xuyên tường. Nhấn Space để bật chế độ vượt tường nếu muốn cố gắng vượt (nếu đã chọn Nam, vượt sẽ miễn phí khi bật).`
-                    );
-                }
+                // If bypassFlag not on, do nothing - just block the movement (no modal)
             }
 
             /* Movement Handler */
@@ -2220,21 +2245,23 @@
 
                             // Calculate points based on direction and retry count
                             const basePoints =
-                                chosenDirection === "east" ? 15 : 5;
+                                chosenDirection === "east"
+                                    ? GAME_CONFIG.EAST_BONUS_POINTS
+                                    : GAME_CONFIG.BASE_POINTS;
+
+                            // Get penalty based on retry count (penalty equals currentRetryCount for retry attempts)
+                            const retryPenalty = event.currentRetryCount;
                             const actualPoints = Math.max(
-                                1,
-                                basePoints - (event.currentRetryCount - 1)
+                                GAME_CONFIG.MIN_POINTS_PER_QUESTION,
+                                basePoints - retryPenalty
                             );
+
                             player.score += actualPoints;
                             updateHUD();
 
                             const retryMessage =
-                                event.currentRetryCount > 1
-                                    ? ` (Giảm ${
-                                          event.currentRetryCount - 1
-                                      } điểm do thử ${
-                                          event.currentRetryCount
-                                      } lần)`
+                                retryPenalty > 0
+                                    ? ` (Trừ ${retryPenalty} điểm do thử lại ${retryPenalty} lần)`
                                     : "";
 
                             // Close question modal and show success message
@@ -2268,8 +2295,6 @@
                             );
                         } else {
                             // Wrong answer - subtract 1 point from reward instead of losing life
-                            const basePoints =
-                                chosenDirection === "east" ? 15 : 5;
                             const pointsLost = 1;
                             player.score = Math.max(
                                 0,
@@ -2311,7 +2336,7 @@
                 updateHUD();
                 openModalMsg(
                     "Nhận Khiên!",
-                    "Bạn nhận được **1 Khiên 🛡️**. Khiên sẽ bảo vệ bạn khỏi bị mất mạng 1 lần khi trả lời sai câu hỏi!",
+                    "Bạn nhận được **1 Khiên 🛡️**. Khiên sẽ bảo vệ bạn khỏi bị trừ điểm 1 lần khi thua mini game xúc xắc!",
                     [{ text: "Tiếp tục", action: "closeModal" }]
                 );
                 draw();
@@ -2343,7 +2368,8 @@
                         {
                             text: "+20 Điểm ⭐",
                             action: () => {
-                                player.score += 20;
+                                player.score +=
+                                    GAME_CONFIG.TREASURE_SMALL_REWARD;
                                 updateHUD();
                             },
                             points: 20,
@@ -2355,7 +2381,7 @@
                         rewardPool.push({
                             text: "+50 Điểm ⭐ (Bắc bonus)",
                             action: () => {
-                                player.score += 50;
+                                player.score += GAME_CONFIG.TREASURE_BIG_REWARD;
                                 updateHUD();
                             },
                             points: 50,
@@ -2371,7 +2397,7 @@
 
                     openModalMsg(
                         "Phần Thưởng Lần 1!",
-                        `Chúc mừng! Bạn mở rương lần đầu và chắc chắn nhận được: **${reward.text}**.`,
+                        `Chúc mừng! Bạn đã nhận được: **${reward.text}**.`,
                         [
                             {
                                 text: "Tiếp tục",
@@ -2424,10 +2450,11 @@
                     return;
                 }
 
-                player.score -= 5; // Trừ điểm cược
+                player.score -= GAME_CONFIG.DICE_BET_COST; // Trừ điểm cược
                 updateHUD();
 
-                const diceRoll = Math.floor(Math.random() * 6) + 1;
+                const diceRoll =
+                    Math.floor(Math.random() * GAME_CONFIG.DICE_SIDES) + 1;
                 event.openedTimes++;
 
                 let result = "";
@@ -2438,11 +2465,16 @@
                     (bet === "small" && diceRoll <= 3)
                 ) {
                     win = true;
-                    player.score += 15; // Thưởng (5 điểm cược + 10 điểm thắng)
-                    result = `Thắng! Xúc xắc ra ${diceRoll}. Bạn nhận được **+10 điểm** (Tổng +15 điểm) và đang có **${player.score}** điểm.`;
+                    player.score += GAME_CONFIG.DICE_WIN_REWARD; // Thưởng (5 điểm cược + 5 điểm thắng)
+                    result = `Thắng! Xúc xắc ra ${diceRoll}. Bạn nhận thêm **+5 điểm** , hiện bạn đang có **${player.score}** điểm.`;
                 } else {
-                    player.score -= 5; // Trừ thêm 5 điểm thua cược
-                    result = `Thua. Xúc xắc ra ${diceRoll}. Bạn mất thêm **5 điểm** (Tổng -10 điểm) và đang có **${player.score}** điểm.`;
+                    // Check if player has shield to protect from losing points
+                    if (player.shield > 0) {
+                        player.shield--; // Use one shield
+                        result = `Thua. Xúc xắc ra ${diceRoll}. **Khiên 🛡️ đã bảo vệ bạn!** Không bị trừ điểm thêm. Khiên còn lại: ${player.shield}`;
+                    } else {
+                        result = `Thua. Xúc xắc ra ${diceRoll}. Bạn mất **5 điểm**, hiện bạn đang có **${player.score}** điểm.`;
+                    }
                 }
                 updateHUD();
 
