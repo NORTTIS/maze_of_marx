@@ -119,6 +119,60 @@
                 }
             }
 
+            /* Boss Fight Layout */
+            .boss-fight-container {
+                display: flex;
+                gap: 20px;
+                max-width: 800px;
+                margin: 0 auto;
+            }
+            .battle-log {
+                flex: 1;
+                background: #1a1a1a;
+                border: 2px solid #333;
+                border-radius: 8px;
+                padding: 15px;
+                max-height: 400px;
+                overflow-y: auto;
+                font-size: 12px;
+                color: #ccc;
+            }
+            .battle-log h3 {
+                margin: 0 0 10px 0;
+                color: #5ff9d1;
+                font-size: 14px;
+                border-bottom: 1px solid #333;
+                padding-bottom: 5px;
+            }
+            .battle-log-entry {
+                margin-bottom: 8px;
+                padding: 5px;
+                border-left: 3px solid #444;
+                padding-left: 8px;
+            }
+            .battle-log-damage {
+                border-left-color: #ef4444;
+                color: #fca5a5;
+            }
+            .battle-log-heal {
+                border-left-color: #22c55e;
+                color: #86efac;
+            }
+            .battle-log-defense {
+                border-left-color: #3b82f6;
+                color: #93c5fd;
+            }
+            .battle-log-calc {
+                font-size: 10px;
+                color: #888;
+                font-style: italic;
+                margin-top: 2px;
+            }
+            .boss-stats {
+                flex: 1;
+                text-align: center;
+            }
+
             .overlay {
                 position: fixed;
                 top: 0;
@@ -518,6 +572,14 @@
 
                 // Cấu hình xúc xắc
                 DICE_SIDES: 6, // Số mặt xúc xắc
+
+                // Cấu hình Boss Fight
+                BOSS_HEALTH: 999, // Máu boss
+                BOSS_MIN_DAMAGE: 15, // Sát thương tối thiểu của boss
+                BOSS_MAX_DAMAGE: 25, // Sát thương tối đa của boss
+                PLAYER_ATTACK_BASE: 20, // Sát thương cơ bản của player
+                PLAYER_ATTACK_BONUS_PER_10_POINTS: 5, // Thêm sát thương mỗi 10 điểm
+                BOSS_VICTORY_REWARD: 100, // Phần thưởng khi thắng boss
             };
 
             // Sử dụng các giá trị cấu hình (để tương thích ngược)
@@ -542,6 +604,8 @@
                 '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-castle"><path d="M22 17a2 2 0 0 0-2-2v-2h-3V7l-5-5-5 5v6H4v2a2 2 0 0 0-2 2h20Z"/><path d="M2 17v3h3"/><path d="M17 17v3h5"/><path d="M15 12V9"/><path d="M9 12V9"/></svg>'; // Lối thoát cuối game (5)
             const ICON_CHAPTER_EXIT_SVG =
                 '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9333ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-portal"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>'; // Cổng chuyển chương (6)
+            const ICON_BOSS_SVG =
+                '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-crown"><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm7 16h6"/></svg>'; // Boss Mr.Phúc (7)
 
             // Cần tạo đối tượng Image cho mỗi icon để vẽ lên Canvas
             const iconImages = {};
@@ -551,6 +615,7 @@
                 4: { svg: ICON_SHIELD_SVG, color: "#60a5fa" },
                 5: { svg: ICON_EXIT_SVG, color: "#ef4444" },
                 6: { svg: ICON_CHAPTER_EXIT_SVG, color: "#9333ea" },
+                7: { svg: ICON_BOSS_SVG, color: "#dc2626" },
             };
 
             // Hàm chuyển SVG sang đối tượng Image để vẽ lên Canvas
@@ -1284,7 +1349,7 @@
                             // East: more questions with higher reward
                             if (Math.random() < 0.6) type = 2;
                         } else if (chosenDirection === "west") {
-                            // West: slightly more hazards (questions where wrong = -5)
+                            // West: slightly more hazards
                             if (Math.random() < 0.5) type = 2;
                         } else if (chosenDirection === "north") {
                             // North: more rewards
@@ -1367,8 +1432,9 @@
                     baseEventTypes.push(4);
                 }
 
-                // Add exit event for final chapter
-                if (currentRoomIndex === totalRooms) {
+                // Add special events for final chapter
+                if (currentRoomIndex === 1) {
+                    baseEventTypes.push(7); // Boss Mr.Phúc in final chapter
                     baseEventTypes.push(5); // Exit only in final chapter
                 }
 
@@ -1564,7 +1630,7 @@
 
                 // Update space hint for gameplay
                 document.getElementById("space-hint").textContent =
-                    "Space: bật/tắt vượt tường. Tìm lối thoát (🏰) để sang phòng tiếp theo.";
+                    "Space: bật/tắt vượt tường. Tìm lối thoát để sang phòng tiếp theo.";
             }
 
             // --- 3. Logic Giao diện (Draw, HUD, Modals) ---
@@ -1715,7 +1781,7 @@
                         }
 
                         // Vẽ sự kiện (sử dụng Icon)
-                        if (cellValue >= 2 && cellValue <= 6) {
+                        if (cellValue >= 2 && cellValue <= 7) {
                             const eventInfo = iconData[cellValue];
                             if (eventInfo) {
                                 // Vẽ nền màu cho ô sự kiện
@@ -1894,6 +1960,12 @@
                             break;
                         case 4: // Lấy khiên
                             handleShieldPickup(event);
+                            break;
+                        case 6: // Cổng chuyển chương
+                            handleChapterExit(event);
+                            break;
+                        case 7: // Boss Fight - Mr.Phúc
+                            handleBossFight(event);
                             break;
                         case 5: // Lối thoát cuối game
                             event.isCleared = true;
@@ -2118,16 +2190,16 @@
                 // Kiểm tra giới hạn bản đồ
                 if (nx < 0 || nx >= N || ny < 0 || ny >= N) return;
 
-                // If the cell is a path (0) or an event (2-6) allow moving into it.
+                // If the cell is a path (0) or an event (2-7) allow moving into it.
                 if (
                     maze[ny][nx] === 0 ||
-                    (maze[ny][nx] >= 2 && maze[ny][nx] <= 6)
+                    (maze[ny][nx] >= 2 && maze[ny][nx] <= 7)
                 ) {
                     player.x = nx;
                     player.y = ny;
                     draw();
                     // Handle events directly in the maze (no mini-rooms)
-                    if (maze[ny][nx] >= 2 && maze[ny][nx] <= 6) {
+                    if (maze[ny][nx] >= 2 && maze[ny][nx] <= 7) {
                         stepOn(nx, ny);
                     }
                 } else if (maze[ny][nx] === 1) {
@@ -2704,6 +2776,294 @@
                 // Start with comic intro
                 showOverlayMode("comic");
             };
+
+            // Handle chapter exit portal
+            function handleChapterExit(event) {
+                if (
+                    chapterQuestionsCorrect >=
+                    GAME_CONFIG.MIN_CORRECT_TO_PROGRESS
+                ) {
+                    event.isCleared = true;
+                    maze[event.y][event.x] = 0;
+                    openModalMsg(
+                        "🚪 Cổng Chương Mở!",
+                        `🎉 Xuất sắc! Bạn đã trả lời đúng ${chapterQuestionsCorrect}/${GAME_CONFIG.QUESTIONS_PER_CHAPTER} câu hỏi trong Chương ${currentRoomIndex}/${totalRooms}. Chuẩn bị chuyển sang mê cung chương tiếp theo!`,
+                        [
+                            {
+                                text: "Sang chương tiếp theo →",
+                                action: () => {
+                                    closeModal();
+                                    nextChapter();
+                                },
+                            },
+                        ]
+                    );
+                } else {
+                    openModalMsg(
+                        "🚪 Cổng Chương Đóng",
+                        `Bạn cần trả lời đúng ít nhất ${GAME_CONFIG.MIN_CORRECT_TO_PROGRESS}/${GAME_CONFIG.QUESTIONS_PER_CHAPTER} câu hỏi để mở cổng. Hiện tại: ${chapterQuestionsCorrect}/${GAME_CONFIG.QUESTIONS_PER_CHAPTER}.`,
+                        [{ text: "Tiếp tục khám phá", action: "closeModal" }]
+                    );
+                }
+            }
+
+            // Handle Boss Fight - Mr.Phúc
+            function handleBossFight(event) {
+                if (
+                    chapterQuestionsCorrect <
+                    GAME_CONFIG.MIN_CORRECT_TO_PROGRESS
+                ) {
+                    openModalMsg(
+                        "⚔️ Boss Chưa Xuất Hiện",
+                        `Bạn cần trả lời đúng ít nhất ${GAME_CONFIG.MIN_CORRECT_TO_PROGRESS}/${GAME_CONFIG.QUESTIONS_PER_CHAPTER} câu hỏi trước khi đối mặt với Boss Mr.Phúc! Hiện tại: ${chapterQuestionsCorrect}/${GAME_CONFIG.QUESTIONS_PER_CHAPTER}.`,
+                        [{ text: "Tiếp tục chuẩn bị", action: "closeModal" }]
+                    );
+                    return;
+                }
+
+                // Initialize boss fight
+                event.bossHealth = event.bossHealth || GAME_CONFIG.BOSS_HEALTH;
+                event.playerHealth = event.playerHealth || player.lives * 30; // 30 HP per life
+
+                startBossFight(event);
+            }
+
+            // Start Boss Fight Game
+            function startBossFight(event) {
+                const playerAttack =
+                    GAME_CONFIG.PLAYER_ATTACK_BASE +
+                    Math.floor(player.score / 10) *
+                        GAME_CONFIG.PLAYER_ATTACK_BONUS_PER_10_POINTS;
+                const playerHealthDisplay = `${event.playerHealth} HP (${player.lives} mạng + ${player.shield} khiên)`;
+
+                // Initialize battle log if not exists
+                if (!event.battleLog) {
+                    event.battleLog = [];
+                    event.battleLog.push({
+                        type: "info",
+                        text: "Trận chiến bắt đầu!",
+                        calc: `Sát thương Player = ${
+                            GAME_CONFIG.PLAYER_ATTACK_BASE
+                        } (base) + ${Math.floor(player.score / 10)} × ${
+                            GAME_CONFIG.PLAYER_ATTACK_BONUS_PER_10_POINTS
+                        } (điểm) = ${playerAttack}`,
+                    });
+                }
+
+                const battleLogHtml = event.battleLog
+                    .map((entry) => {
+                        let className = "battle-log-entry";
+                        if (entry.type === "damage")
+                            className += " battle-log-damage";
+                        else if (entry.type === "heal")
+                            className += " battle-log-heal";
+                        else if (entry.type === "defense")
+                            className += " battle-log-defense";
+
+                        return `<div class="${className}">
+                        ${entry.text}
+                        ${
+                            entry.calc
+                                ? `<div class="battle-log-calc">${entry.calc}</div>`
+                                : ""
+                        }
+                    </div>`;
+                    })
+                    .join("");
+
+                openModalMsg(
+                    "⚔️ BOSS FIGHT: Mr.Phúc!",
+                    `<div class="boss-fight-container">
+                        <div class="battle-log">
+                            <h3>📊 Battle Log & Tính Toán</h3>
+                            <div id="battle-log-content">${battleLogHtml}</div>
+                        </div>
+                        <div class="boss-stats">
+                            <div style="font-size: 24px; margin-bottom: 15px;">👑 Mr.Phúc</div>
+                            <div style="color: #ef4444; font-size: 18px; margin-bottom: 10px;">❤️ ${
+                                event.bossHealth
+                            }/${GAME_CONFIG.BOSS_HEALTH} HP</div>
+                            <div style="margin: 15px 0; font-size: 16px;">VS</div>
+                            <div style="color: #22c55e; font-size: 16px; margin-bottom: 10px;">💚 ${playerHealthDisplay}</div>
+                            <div style="color: #3b82f6; font-size: 16px; margin-bottom: 15px;">⚔️ Sát thương: ${playerAttack}</div>
+                            <div style="font-size: 14px; color: #888;">
+                                Boss sát thương: ${
+                                    GAME_CONFIG.BOSS_MIN_DAMAGE
+                                }-${GAME_CONFIG.BOSS_MAX_DAMAGE}<br>
+                                Phòng thủ giảm: ~${Math.floor(
+                                    (GAME_CONFIG.BOSS_MIN_DAMAGE +
+                                        GAME_CONFIG.BOSS_MAX_DAMAGE) /
+                                        3
+                                )}
+                            </div>
+                        </div>
+                    </div>`,
+                    [
+                        {
+                            text: "⚔️ Tấn Công!",
+                            action: () => executeAttack(event, playerAttack),
+                        },
+                        {
+                            text: "🛡️ Phòng Thủ",
+                            action: () => executeDefense(event),
+                        },
+                        {
+                            text: "💨 Chạy Trốn",
+                            action: () => {
+                                closeModal();
+                                openModalMsg(
+                                    "💨 Bạn đã chạy trốn!",
+                                    "Boss Mr.Phúc vẫn đang chờ bạn quay lại..."
+                                );
+                            },
+                        },
+                    ]
+                );
+            }
+
+            // Execute attack in boss fight
+            function executeAttack(event, playerAttack) {
+                // Player attacks boss
+                const randomMod = Math.floor(Math.random() * 10) - 5; // ±5 random
+                const damage = playerAttack + randomMod;
+                const actualDamage = Math.max(1, damage);
+                event.bossHealth -= actualDamage;
+
+                // Add to battle log
+                event.battleLog.push({
+                    type: "damage",
+                    text: `⚔️ Bạn tấn công: ${actualDamage} sát thương`,
+                    calc: `${playerAttack} (base) + ${randomMod} (random) = ${damage} → ${actualDamage} (min 1)`,
+                });
+
+                let result = `Bạn gây ${actualDamage} sát thương cho Mr.Phúc!`;
+
+                // Check if boss is defeated
+                if (event.bossHealth <= 0) {
+                    event.isCleared = true;
+                    maze[event.y][event.x] = 0;
+                    player.score += GAME_CONFIG.BOSS_VICTORY_REWARD;
+                    updateHUD();
+
+                    openModalMsg(
+                        "🎉 THẮNG BOSS!",
+                        `Chúc mừng! Bạn đã đánh bại Boss Mr.Phúc!<br><br>
+                        🏆 Phần thưởng: +${GAME_CONFIG.BOSS_VICTORY_REWARD} điểm<br>
+                        💰 Điểm hiện tại: ${player.score}<br><br>
+                        Bây giờ bạn có thể tìm lối thoát để hoàn thành game!`,
+                        [{ text: "Tiếp tục", action: "closeModal" }]
+                    );
+                    return;
+                }
+
+                // Boss counter-attacks
+                const bossAttack =
+                    GAME_CONFIG.BOSS_MIN_DAMAGE +
+                    Math.floor(
+                        Math.random() *
+                            (GAME_CONFIG.BOSS_MAX_DAMAGE -
+                                GAME_CONFIG.BOSS_MIN_DAMAGE +
+                                1)
+                    );
+
+                // Apply damage to player
+                let playerDamaged = false;
+                if (player.shield > 0) {
+                    player.shield--;
+                    event.battleLog.push({
+                        type: "defense",
+                        text: `🛡️ Khiên chặn: ${bossAttack} sát thương`,
+                        calc: `Khiên còn lại: ${player.shield}`,
+                    });
+                    result += `<br>Mr.Phúc tấn công ${bossAttack} sát thương, nhưng khiên đã bảo vệ bạn! Khiên còn: ${player.shield}`;
+                } else {
+                    event.playerHealth -= bossAttack;
+                    event.battleLog.push({
+                        type: "damage",
+                        text: `💥 Boss tấn công: ${bossAttack} sát thương`,
+                        calc: `${GAME_CONFIG.BOSS_MIN_DAMAGE}-${GAME_CONFIG.BOSS_MAX_DAMAGE} range, rolled ${bossAttack}`,
+                    });
+                    result += `<br>Mr.Phúc gây ${bossAttack} sát thương cho bạn!`;
+                    playerDamaged = true;
+
+                    // Check if player loses a life
+                    if (event.playerHealth <= 0 && player.lives > 1) {
+                        player.lives--;
+                        event.playerHealth = 30; // Reset health for new life
+                        result += `<br>💀 Bạn mất 1 mạng! Mạng còn lại: ${player.lives}`;
+                        updateHUD();
+                    } else if (event.playerHealth <= 0 && player.lives <= 1) {
+                        // Game over
+                        openModalMsg(
+                            "💀 GAME OVER",
+                            "Bạn đã bị Boss Mr.Phúc đánh bại! Game kết thúc.",
+                            [
+                                {
+                                    text: "Chơi lại",
+                                    action: () => location.reload(),
+                                },
+                            ]
+                        );
+                        return;
+                    }
+                }
+
+                closeModal();
+                setTimeout(() => startBossFight(event), 1000);
+            }
+
+            // Execute defense in boss fight
+            function executeDefense(event) {
+                const healAmount = 15;
+                const oldHealth = event.playerHealth;
+                event.playerHealth = Math.min(
+                    player.lives * 30,
+                    event.playerHealth + healAmount
+                );
+                const actualHeal = event.playerHealth - oldHealth;
+
+                // Add healing to battle log
+                event.battleLog.push({
+                    type: "heal",
+                    text: `💚 Phòng thủ hồi: +${actualHeal} HP`,
+                    calc: `${oldHealth} + ${healAmount} = ${
+                        oldHealth + healAmount
+                    } → ${event.playerHealth} (max: ${player.lives * 30})`,
+                });
+
+                // Boss still attacks but with reduced damage
+                const bossAttack = Math.floor(
+                    (GAME_CONFIG.BOSS_MIN_DAMAGE +
+                        GAME_CONFIG.BOSS_MAX_DAMAGE) /
+                        3
+                );
+
+                let result = `Bạn phòng thủ và hồi ${actualHeal} HP!`;
+
+                if (player.shield > 0) {
+                    player.shield--;
+                    event.battleLog.push({
+                        type: "defense",
+                        text: `🛡️ Khiên chặn (phòng thủ): ${bossAttack} sát thương`,
+                        calc: `Reduced damage: (${GAME_CONFIG.BOSS_MIN_DAMAGE}+${GAME_CONFIG.BOSS_MAX_DAMAGE})/3 = ${bossAttack}`,
+                    });
+                    result += `<br>Mr.Phúc tấn công nhẹ ${bossAttack} sát thương, khiên bảo vệ hoàn toàn! Khiên còn: ${player.shield}`;
+                } else {
+                    event.playerHealth -= bossAttack;
+                    event.battleLog.push({
+                        type: "damage",
+                        text: `💥 Boss tấn công (giảm): ${bossAttack} sát thương`,
+                        calc: `Reduced damage: (${GAME_CONFIG.BOSS_MIN_DAMAGE}+${GAME_CONFIG.BOSS_MAX_DAMAGE})/3 = ${bossAttack}`,
+                    });
+                    result += `<br>Mr.Phúc tấn công nhẹ ${bossAttack} sát thương khi bạn phòng thủ!`;
+                }
+
+                openModalMsg("🛡️ Phòng Thủ", result, [
+                    { text: "Tiếp tục", action: "closeModal" },
+                ]);
+                closeModal();
+                setTimeout(() => startBossFight(event), 1500);
+            }
         </script>
     </body>
 </html>
