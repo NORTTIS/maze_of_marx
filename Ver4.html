@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="vi">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>MLN122 - Maze of Marx (Boss Req + Free Room)</title>
+        <style>
+            html,
+            body {
+                height: 100%;
+            }
+            body {
+                margin: 0;
+                background: #0b0c12;
+                color: #e5e7eb;
+                font-family: ui-monospace, Consolas, monospace;
+                overflow: hidden;
+            }
+            header {
+                background: #0f1324;
+                border-bottom: 2px solid #1e2a4b;
+                padding: 10px 12px;
+                position: sticky;
+                top: 0;
+                z-index: 3;
+            }
+            h1 {
+                font-size: 16px;
+                margin: 0;
+            }
+            .hud {
+                display: flex;
+                gap: 12px;
+                flex-wrap: wrap;
+                margin-top: 6px;
+                font-size: 12px;
+            }
+            .pill {
+                padding: 4px 8px;
+                border: 1px solid #1e2a4b;
+                border-radius: 999px;
+                background: #0c1222;
+            }
+            .wrap {
+                max-width: 1100px;
+                margin: 0 auto;
+                padding: 12px;
+                display: grid;
+                gap: 12px;
+            }
+            .cols {
+                display: grid;
+                gap: 12px;
+            }
+            @media (min-width: 980px) {
+                .cols {
+                    grid-template-columns: 1fr 360px;
+                }
+            }
+            canvas {
+                image-rendering: pixelated;
+                background: #06070f;
+                border: 2px solid #1e2a4b;
+                border-radius: 6px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            }
+            .panel {
+                background: #0f1324;
+                border: 1px solid #1e2a4b;
+                border-radius: 8px;
+                padding: 10px;
+            }
+            .legend {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 6px;
+                font-size: 12px;
+            }
+            button {
+                font-family: inherit;
+                background: #3a56ff;
+                color: #fff;
+                border: none;
+                border-radius: 8px;
+                padding: 10px 12px;
+                cursor: pointer;
+            }
+            button.secondary {
+                background: #253052;
+            }
+            dialog {
+                border: 1px solid #1e2a4b;
+                border-radius: 10px;
+                background: #0c1222;
+                color: #e5e7eb;
+                max-width: 780px;
+            }
+            dialog::backdrop {
+                background: rgba(0, 0, 0, 0.6);
+            }
+            .q {
+                margin: 0 0 8px 0;
+            }
+            .opt {
+                display: block;
+                margin: 8px 0;
+            }
+            .small {
+                font-size: 12px;
+                opacity: 0.85;
+            }
+            /* Comic overlay */
+            #overlay {
+                position: fixed;
+                inset: 0;
+                background: #000;
+                color: #e5e7eb;
+                z-index: 50;
+                display: none;
+            }
+            .comic {
+                position: absolute;
+                inset: 0;
+                display: grid;
+                place-items: center;
+                padding: 18px;
+            }
+            .panel-box {
+                width: min(920px, 95vw);
+                height: min(520px, 70vh);
+                background: #111429;
+                border: 4px solid #1f2a55;
+                border-radius: 12px;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+                display: grid;
+                grid-template-rows: 1fr auto;
+                overflow: hidden;
+            }
+            .panel-art {
+                background: linear-gradient(120deg, #1a2147, #0f1532);
+                display: grid;
+                place-items: center;
+                padding: 16px;
+                font-size: 28px;
+            }
+            .panel-caption {
+                border-top: 2px solid #1f2a55;
+                padding: 12px;
+                background: #0e1328;
+                min-height: 70px;
+            }
+            .type {
+                white-space: pre-wrap;
+            }
+            .panel-controls {
+                position: absolute;
+                right: 20px;
+                bottom: 16px;
+                display: flex;
+                gap: 8px;
+            }
+            .btn {
+                background: #3a56ff;
+                border: none;
+                color: #fff;
+                padding: 10px 14px;
+                border-radius: 8px;
+                cursor: pointer;
+            }
+            .btn.ghost {
+                background: #223;
+                color: #aab;
+            }
+            .blackout {
+                position: absolute;
+                inset: 0;
+                background: #000;
+                display: none;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="wrap">
+                <h1>MLN122 - Maze of Marx (20 Phòng | WASD)</h1>
+                <div class="hud">
+                    <span class="pill"
+                        >⏱️ Thời gian: <b id="time">15:00</b></span
+                    >
+                    <span class="pill">❤️ Mạng: <b id="lives">3</b></span>
+                    <span class="pill">🗝️ Phòng: <b id="room">0 / 20</b></span>
+                    <span class="pill">⭐ Điểm: <b id="score">0</b></span>
+                    <span class="pill">🎮 Điều khiển: WASD / Mũi tên</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="wrap cols">
+            <section>
+                <canvas id="cv" width="544" height="544"></canvas>
+            </section>
+            <aside class="panel">
+                <h3 style="margin-top: 0">Chú giải</h3>
+                <div class="legend">
+                    <div>🟩 Đường</div>
+                    <div>🧱 Tường</div>
+                    <div>🔵 H: Hint</div>
+                    <div>🟡 Q: Quiz</div>
+                    <div>☠️ X: Bẫy</div>
+                    <div>⬜ Cổng ra</div>
+                    <div>🟣 B: Boss</div>
+                    <div>🟠 T: Teleport</div>
+                    <div>🟪 C: Rương</div>
+                    <div>🛌 REST: phòng 4 cổng</div>
+                </div>
+                <button id="btnReset" class="secondary">Reset & Random</button>
+            </aside>
+        </main>
+
+        <!-- Comic overlay -->
+        <div id="overlay">
+            <div class="blackout" id="black"></div>
+            <div class="comic">
+                <div class="panel-box">
+                    <div class="panel-art" id="art">📕</div>
+                    <div class="panel-caption">
+                        <div class="type" id="caption"></div>
+                        <div class="panel-controls">
+                            <button class="btn ghost" id="skip">Bỏ qua</button>
+                            <button class="btn" id="next">Tiếp</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <dialog id="modalQ">
+            <form method="dialog">
+                <h3 id="qTitle">Câu hỏi</h3>
+                <p id="qText" class="q"></p>
+                <div id="opts"></div>
+                <div class="small" id="hintArea"></div>
+                <div style="margin-top: 10px">
+                    <button value="close" class="secondary">Đóng</button>
+                </div>
+            </form>
+        </dialog>
+
+        <dialog id="modalMsg">
+            <form method="dialog">
+                <h3 id="msgTitle">Thông báo</h3>
+                <p id="msgText"></p>
+                <button value="ok">OK</button>
+            </form>
+        </dialog>
+
+        <script>
+            const TILE = 32,
+                N = 17,
+                TOTAL_ROOMS = 20;
+            const COUNTS = {
+                quiz: 10,
+                hint: 4,
+                death: 2,
+                rest: 2,
+                boss: 1,
+                mech: 1,
+            };
+            const INTERACT_QUIZ = 10,
+                TIMER_SEC = 15 * 60,
+                START_LIVES = 3,
+                SPEED = 1;
+            const cv = document.getElementById("cv"),
+                ctx = cv.getContext("2d");
+            const timeEl = document.getElementById("time"),
+                livesEl = document.getElementById("lives"),
+                roomEl = document.getElementById("room"),
+                scoreEl = document.getElementById("score");
+            const modalQ = document.getElementById("modalQ"),
+                qTitle = document.getElementById("qTitle"),
+                qText = document.getElementById("qText"),
+                optsBox = document.getElementById("opts"),
+                hintArea = document.getElementById("hintArea");
+            const modalMsg = document.getElementById("modalMsg"),
+                msgTitle = document.getElementById("msgTitle"),
+                msgText = document.getElementById("msgText");
+            const overlay = document.getElementById("overlay"),
+                art = document.getElementById("art"),
+                caption = document.getElementById("caption"),
+                nextBtn = document.getElementById("next"),
+                skipBtn = document.getElementById("skip"),
+                blackDiv = document.getElementById("black");
+
+            /* Comic panels */
+            const introPanels = [
+                {
+                    art: "📕",
+                    text: 'Thầy dặn: "Sản phẩm không rõ \nMục đích - Mục tiêu - Ý nghĩa là GAME OVER."',
+                },
+                {
+                    art: "🕵️",
+                    text: '"Có gián điệp theo dõi game của các em." \nHãy chứng minh giá trị học thuật!',
+                },
+                {
+                    art: "🏭❤️",
+                    text: "Sứ mệnh: tạo GIÁ TRỊ THẶNG DƯ \nnhưng vẫn giữ CÔNG BẰNG XÃ HỘI.",
+                },
+                {
+                    art: "🧭",
+                    text: "Vượt 20 phòng: Quiz, Hint, Boss Phúc, Teleport, Death… \nThu thập rương và thoát ra đúng hạn!",
+                },
+            ];
+            const outroPanels = [
+                { art: "🎓", text: "Hành trình kết thúc." },
+                { art: "🏅", text: "Phần thưởng: Doanh nghiệp bền vững." },
+                {
+                    art: "📜",
+                    text: "Bài học: Lợi nhuận phải đi cùng công bằng.",
+                },
+            ];
+            let comicMode = "intro",
+                panelIndex = 0,
+                typingId = null;
+            function showOverlay(kind) {
+                comicMode = kind;
+                panelIndex = 0;
+                overlay.style.display = "block";
+                typePanel();
+            }
+            function typePanel() {
+                const arr = comicMode === "intro" ? introPanels : outroPanels;
+                const p = arr[panelIndex];
+                art.textContent = p.art;
+                caption.textContent = "";
+                let i = 0;
+                clearInterval(typingId);
+                typingId = setInterval(() => {
+                    caption.textContent = p.text.slice(0, ++i);
+                    if (i >= p.text.length) clearInterval(typingId);
+                }, 18);
+            }
+            nextBtn.onclick = () => {
+                const arr = comicMode === "intro" ? introPanels : outroPanels;
+                if (panelIndex < arr.length - 1) {
+                    panelIndex++;
+                    typePanel();
+                } else {
+                    blackDiv.style.display = "block";
+                    blackDiv.style.opacity = 1;
+                    overlay.innerHTML =
+                        '<div class="comic"><button id="playBtn" class="btn" style="padding:16px 22px">▶ Play</button></div>';
+                    document.getElementById("playBtn").onclick = () => {
+                        overlay.style.display = "none";
+                        startGame();
+                    };
+                }
+            };
+            skipBtn.onclick = () => {
+                overlay.style.display = "none";
+                startGame();
+            };
+
+            /* Bank */
+            const bank = [
+                {
+                    tag: "Hàng hoá",
+                    q: "Theo Mác, hàng hoá có mấy thuộc tính cơ bản?",
+                    a: "Hai: giá trị sử dụng và giá trị",
+                    choices: [
+                        "Hai: giá trị sử dụng và giá trị",
+                        "Một: giá trị",
+                        "Ba: giá trị, giá cả, lợi nhuận",
+                        "Bốn: giá trị, giá trị sử dụng, giá cả, thặng dư",
+                    ],
+                    hint: "Hai thuộc tính: giá trị sử dụng & giá trị.",
+                },
+                {
+                    tag: "Sản xuất hàng hoá",
+                    q: "Điều kiện ra đời của sản xuất hàng hoá KHÔNG gồm?",
+                    a: "Tập trung tư bản cao độ",
+                    choices: [
+                        "Phân công lao động xã hội",
+                        "Tách biệt kinh tế giữa các chủ thể",
+                        "Trao đổi qua thị trường",
+                        "Tập trung tư bản cao độ",
+                    ],
+                    hint: "Hai điều kiện chính: phân công LĐ & tách biệt kinh tế.",
+                },
+                {
+                    tag: "Tiền tệ",
+                    q: "Chức năng thước đo giá trị thuộc về?",
+                    a: "Tiền tệ",
+                    choices: ["Tiền tệ", "Hàng hoá", "Tư bản", "Tiền công"],
+                    hint: "Chức năng của tiền tệ.",
+                },
+                {
+                    tag: "Giá trị",
+                    q: "Giá trị hàng hoá do cái gì quyết định?",
+                    a: "Lao động xã hội cần thiết",
+                    choices: [
+                        "Khả năng mua",
+                        "Cung - cầu",
+                        "Lao động xã hội cần thiết",
+                        "Uy tín thương hiệu",
+                    ],
+                    hint: "Lượng giá trị ∝ thời gian lao động XH cần thiết.",
+                },
+                {
+                    tag: "Giá trị thặng dư",
+                    q: "Nguồn gốc giá trị thặng dư là gì?",
+                    a: "Lao động thặng dư của công nhân làm thuê",
+                    choices: [
+                        "Máy móc tạo ra",
+                        "Đổi chác tạo ra",
+                        "Thuế tạo ra",
+                        "Lao động thặng dư của công nhân làm thuê",
+                    ],
+                    hint: "Trọng tâm học thuyết Mác.",
+                },
+                {
+                    tag: "Bóc lột",
+                    q: "Bản chất bóc lột trong CNTB?",
+                    a: "Chiếm đoạt lao động thặng dư",
+                    choices: [
+                        "Ép giá bán",
+                        "Chiếm đoạt lao động thặng dư",
+                        "Hạ chất lượng",
+                        "Giảm cạnh tranh",
+                    ],
+                    hint: "Chiếm đoạt M.",
+                },
+                {
+                    tag: "M tuyệt đối",
+                    q: "Tăng cường độ lao động là phương pháp tạo M nào?",
+                    a: "Tuyệt đối",
+                    choices: [
+                        "Tuyệt đối",
+                        "Tương đối",
+                        "Siêu ngạch",
+                        "Không thuộc",
+                    ],
+                    hint: "Tuyệt đối: kéo dài/ tăng cường độ LĐ.",
+                },
+                {
+                    tag: "M tương đối",
+                    q: "Tăng năng suất lao động nhằm rút ngắn LĐ tất yếu là M loại gì?",
+                    a: "Tương đối",
+                    choices: [
+                        "Tuyệt đối",
+                        "Tương đối",
+                        "Siêu ngạch",
+                        "Không thuộc",
+                    ],
+                    hint: "M tương đối nhờ NSLĐ.",
+                },
+                {
+                    tag: "Siêu ngạch",
+                    q: "Giá trị thặng dư siêu ngạch có được khi?",
+                    a: "Doanh nghiệp có năng suất vượt trội so với TB xã hội",
+                    choices: [
+                        "Tăng giờ làm",
+                        "Tăng lương",
+                        "Doanh nghiệp có năng suất vượt trội so với TB xã hội",
+                        "Không liên quan năng suất",
+                    ],
+                    hint: "NS cá biệt < NSXH.",
+                },
+                {
+                    tag: "Tích luỹ",
+                    q: "Tích luỹ tư bản làm tăng chủ yếu?",
+                    a: "Quy mô tư bản cá biệt",
+                    choices: [
+                        "Quy mô tư bản cá biệt",
+                        "Lương thực tế",
+                        "Thời gian nghỉ",
+                        "Thuế VAT",
+                    ],
+                    hint: "Tích tụ + tập trung.",
+                },
+                {
+                    tag: "Độc quyền",
+                    q: "Đặc điểm KHÔNG phải của chủ nghĩa đế quốc theo Lênin?",
+                    a: "Xoá bỏ hoàn toàn thị trường thế giới",
+                    choices: [
+                        "Tập trung sản xuất & độc quyền",
+                        "Tư bản tài chính",
+                        "Xuất khẩu tư bản",
+                        "Xoá bỏ hoàn toàn thị trường thế giới",
+                    ],
+                    hint: "5 đặc điểm.",
+                },
+                {
+                    tag: "Thị trường",
+                    q: "Vai trò cơ bản của thị trường?",
+                    a: "Phân bổ nguồn lực thông qua giá cả",
+                    choices: [
+                        "Phân bổ nguồn lực thông qua giá cả",
+                        "Tăng lạm phát",
+                        "Giảm cạnh tranh",
+                        "Loại bỏ Nhà nước",
+                    ],
+                    hint: "Cơ chế giá.",
+                },
+                {
+                    tag: "KTTT định hướng XHCN",
+                    q: "Một đặc trưng của KTTT định hướng XHCN ở VN?",
+                    a: "Kết hợp hiệu quả với công bằng xã hội",
+                    choices: [
+                        "Chỉ lợi nhuận",
+                        "Loại bỏ sở hữu tư nhân",
+                        "Kết hợp hiệu quả với công bằng xã hội",
+                        "Không cần NN",
+                    ],
+                    hint: "Đặc trưng.",
+                },
+                {
+                    tag: "CNH-HĐH",
+                    q: "Hội nhập kinh tế quốc tế KHÔNG gồm?",
+                    a: "Cô lập thương mại",
+                    choices: [
+                        "FTA",
+                        "Liên minh thuế quan",
+                        "Liên minh kinh tế",
+                        "Cô lập thương mại",
+                    ],
+                    hint: "Các cấp độ.",
+                },
+                {
+                    tag: "Tiền công",
+                    q: "Tiền công là?",
+                    a: "Giá cả của sức lao động",
+                    choices: [
+                        "Giá cả của sức lao động",
+                        "Giá cả hàng hoá",
+                        "Tiền boa",
+                        "Thuế thu nhập",
+                    ],
+                    hint: "Hàng hoá đặc biệt.",
+                },
+                {
+                    tag: "Tái sản xuất",
+                    q: "Tái sản xuất mở rộng là?",
+                    a: "Quy mô sản xuất tăng lên qua các chu kỳ",
+                    choices: [
+                        "Giữ nguyên quy mô",
+                        "Quy mô sản xuất tăng lên qua các chu kỳ",
+                        "Giảm vốn",
+                        "Chỉ tăng LĐ",
+                    ],
+                    hint: "Mục tiêu tích luỹ.",
+                },
+                {
+                    tag: "Cạnh tranh",
+                    q: "Hệ quả tích cực của cạnh tranh?",
+                    a: "Thúc đẩy đổi mới và hiệu quả",
+                    choices: [
+                        "Tạo độc quyền ngay",
+                        "Thúc đẩy đổi mới và hiệu quả",
+                        "Giảm năng suất",
+                        "Huỷ thị trường",
+                    ],
+                    hint: "Song trùng tích cực/tiêu cực.",
+                },
+                {
+                    tag: "Độc quyền tự nhiên",
+                    q: "Vì sao cần quản lý độc quyền tự nhiên?",
+                    a: "Đảm bảo lợi ích xã hội & người tiêu dùng",
+                    choices: [
+                        "Tối đa hoá lợi nhuận tư nhân",
+                        "Đảm bảo lợi ích xã hội & người tiêu dùng",
+                        "Không ai được kinh doanh",
+                        "Tăng giá tuỳ ý",
+                    ],
+                    hint: "Điều tiết NN.",
+                },
+                {
+                    tag: "Vai trò NN",
+                    q: "Trong KTTT định hướng XHCN, NN có vai trò?",
+                    a: "Định hướng, điều tiết, bảo đảm công bằng",
+                    choices: [
+                        "Không can thiệp",
+                        "Chỉ thu thuế",
+                        "Định hướng, điều tiết, bảo đảm công bằng",
+                        "Kinh doanh mọi ngành",
+                    ],
+                    hint: "Vai trò đa chiều.",
+                },
+                {
+                    tag: "Sở hữu",
+                    q: "Chế độ sở hữu ở VN?",
+                    a: "Đa dạng: nhà nước, tập thể, tư nhân...",
+                    choices: [
+                        "Chỉ nhà nước",
+                        "Chỉ tư nhân",
+                        "Đa dạng: nhà nước, tập thể, tư nhân...",
+                        "Không sở hữu",
+                    ],
+                    hint: "Nhiều hình thức.",
+                },
+            ];
+
+            /* State */
+            let lives = START_LIVES,
+                score = 0,
+                timer = TIMER_SEC;
+            let pool = [],
+                roomKind = "",
+                roomData = null,
+                roomCount = 0;
+            let maze, player, exitTile;
+            let bossTicker = null,
+                bossReq = 30; // randomized on boss room
+            function rand(n) {
+                return Math.floor(Math.random() * n);
+            }
+            function shuffle(a) {
+                for (let i = a.length - 1; i > 0; i--) {
+                    const j = rand(i + 1);
+                    [a[i], a[j]] = [a[j], a[i]];
+                }
+                return a;
+            }
+
+            /* Maze helpers */
+            function genMaze() {
+                const g = Array.from({ length: N }, () =>
+                    Array.from({ length: N }, () => 1)
+                );
+                (function carve(x, y) {
+                    g[y][x] = 0;
+                    for (const [dx, dy] of shuffle([
+                        [2, 0],
+                        [-2, 0],
+                        [0, 2],
+                        [0, -2],
+                    ])) {
+                        const nx = x + dx,
+                            ny = y + dy;
+                        if (
+                            nx > 0 &&
+                            nx < N - 1 &&
+                            ny > 0 &&
+                            ny < N - 1 &&
+                            g[ny][nx] === 1
+                        ) {
+                            g[y + dy / 2][x + dx / 2] = 0;
+                            carve(nx, ny);
+                        }
+                    }
+                })(1, 1);
+                return g;
+            }
+            function openCells(g) {
+                const c = [];
+                for (let y = 1; y < N - 1; y++)
+                    for (let x = 1; x < N - 1; x++)
+                        if (g[y][x] === 0) c.push({ x, y });
+                return c;
+            }
+            function farExit(g) {
+                const cells = openCells(g);
+                let best = cells[0],
+                    d = 0;
+                for (const p of cells) {
+                    const dd = (p.x - 1) ** 2 + (p.y - 1) ** 2;
+                    if (dd > d) {
+                        d = dd;
+                        best = p;
+                    }
+                }
+                return best;
+            }
+
+            /* Rooms */
+            function newRoom() {
+                if (bossTicker) {
+                    clearInterval(bossTicker);
+                    bossTicker = null;
+                }
+                const kind = pool.pop();
+                roomKind = kind;
+                roomCount++;
+                updateHUD();
+                // Build map
+                if (kind === "rest") {
+                    // FREE room: no maze, open field with 4 gates
+                    maze = Array.from({ length: N }, () =>
+                        Array.from({ length: N }, () => 0)
+                    ); // all walkable
+                    player = { x: Math.floor(N / 2), y: Math.floor(N / 2) };
+                    exitTile = { x: -1, y: -1 }; // no single exit
+                    roomData = {
+                        gates: [
+                            { x: Math.floor(N / 2), y: 1 },
+                            { x: N - 2, y: Math.floor(N / 2) },
+                            { x: Math.floor(N / 2), y: N - 2 },
+                            { x: 1, y: Math.floor(N / 2) },
+                        ],
+                        chests: [],
+                    };
+                } else {
+                    maze = genMaze();
+                    player = { x: 1, y: 1 };
+                    exitTile = farExit(maze);
+                }
+
+                if (kind === "quiz") {
+                    const qs = [],
+                        b = shuffle(bank.slice());
+                    while (qs.length < INTERACT_QUIZ) {
+                        qs.push(b[qs.length % b.length]);
+                    }
+                    const cells = shuffle(
+                        openCells(maze).filter(
+                            (c) =>
+                                !(c.x === player.x && c.y === player.y) &&
+                                !(c.x === exitTile.x && c.y === exitTile.y)
+                        )
+                    );
+                    const tiles = cells.slice(0, INTERACT_QUIZ);
+                    roomData = {
+                        questions: qs,
+                        tiles,
+                        answered: Array(INTERACT_QUIZ).fill(false),
+                        chests: cells.slice(INTERACT_QUIZ, INTERACT_QUIZ + 3),
+                    };
+                } else if (kind === "hint") {
+                    const hints = [
+                        "Sắp tới: Giá trị thặng dư",
+                        "Chú ý: hàng hoá & hai thuộc tính",
+                        "Vai trò Nhà nước trong KTTT định hướng XHCN",
+                        "Phân biệt: M tuyệt đối/ tương đối/ siêu ngạch",
+                        "Đặc điểm CN đế quốc theo Lênin",
+                    ];
+                    const cells = shuffle(
+                        openCells(maze).filter(
+                            (c) =>
+                                !(c.x === player.x && c.y === player.y) &&
+                                !(c.x === exitTile.x && c.y === exitTile.y)
+                        )
+                    );
+                    roomData = {
+                        tiles: cells.slice(0, 7),
+                        hints,
+                        chests: cells.slice(7, 10),
+                    };
+                } else if (kind === "death") {
+                    const cells = shuffle(
+                        openCells(maze).filter(
+                            (c) =>
+                                !(c.x === player.x && c.y === player.y) &&
+                                !(c.x === exitTile.x && c.y === exitTile.y)
+                        )
+                    );
+                    roomData = {
+                        traps: cells.slice(0, 22),
+                        chests: cells.slice(22, 25),
+                    };
+                } else if (kind === "boss") {
+                    const cells = openCells(maze);
+                    const missiles = [];
+                    for (let i = 0; i < 6; i++) {
+                        const p = cells[rand(cells.length)];
+                        const dir =
+                            Math.random() < 0.5
+                                ? { dx: 1, dy: 0 }
+                                : { dx: 0, dy: 1 };
+                        missiles.push({
+                            x: p.x,
+                            y: p.y,
+                            dx: dir.dx,
+                            dy: dir.dy,
+                        });
+                    }
+                    bossReq = Math.max(26, 20 + rand(31)); // random 26..50
+                    roomData = { missiles, chests: [] };
+                    openModalMsg(
+                        "Boss Phúc 👹",
+                        `Điểm yêu cầu: <b>${bossReq}</b>. Nếu điểm hiện tại (${score}) < ${bossReq}, khi chạm cổng sẽ bị <b>Thầy Phúc</b> bắn gục!`
+                    );
+                    bossTicker = setInterval(() => {
+                        roomData.missiles.forEach((m) => {
+                            let nx = m.x + m.dx,
+                                ny = m.y + m.dy;
+                            if (
+                                nx <= 0 ||
+                                ny <= 0 ||
+                                nx >= N - 1 ||
+                                ny >= N - 1 ||
+                                maze[ny][nx] === 1
+                            ) {
+                                m.dx *= -1;
+                                m.dy *= -1;
+                                nx = m.x + m.dx;
+                                ny = m.y + m.dy;
+                            }
+                            if (maze[ny][nx] === 0) {
+                                m.x = nx;
+                                m.y = ny;
+                            }
+                            if (player.x === m.x && player.y === m.y) {
+                                loseLife("Bạn trúng tên lửa đỏ của Boss Phúc.");
+                            }
+                        });
+                        draw();
+                    }, 160);
+                } else if (kind === "mech") {
+                    const cells = shuffle(
+                        openCells(maze).filter(
+                            (c) =>
+                                !(c.x === player.x && c.y === player.y) &&
+                                !(c.x === exitTile.x && c.y === exitTile.y)
+                        )
+                    );
+                    roomData = {
+                        pads: cells.slice(0, 4),
+                        chests: cells.slice(4, 7),
+                    };
+                }
+                draw();
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, cv.width, cv.height);
+                for (let y = 0; y < N; y++) {
+                    for (let x = 0; x < N; x++) {
+                        ctx.fillStyle =
+                            maze[y][x] === 1 ? "#1f243b" : "#0f1530";
+                        ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+                    }
+                }
+                if (roomKind === "quiz") {
+                    ctx.fillStyle = "#facc15";
+                    roomData.tiles.forEach((t, i) => {
+                        if (!roomData.answered[i])
+                            ctx.fillRect(
+                                t.x * TILE + 10,
+                                t.y * TILE + 10,
+                                TILE - 20,
+                                TILE - 20
+                            );
+                    });
+                }
+                if (roomKind === "hint") {
+                    ctx.fillStyle = "#38bdf8";
+                    roomData.tiles.forEach((t) =>
+                        ctx.fillRect(
+                            t.x * TILE + 10,
+                            t.y * TILE + 10,
+                            TILE - 20,
+                            TILE - 20
+                        )
+                    );
+                }
+                if (roomKind === "death") {
+                    ctx.fillStyle = "#ef4444";
+                    roomData.traps.forEach((t) =>
+                        ctx.fillRect(
+                            t.x * TILE + 8,
+                            t.y * TILE + 8,
+                            TILE - 16,
+                            TILE - 16
+                        )
+                    );
+                }
+                if (roomKind === "rest") {
+                    ctx.fillStyle = "#a3e635";
+                    roomData.gates.forEach((g) =>
+                        ctx.fillRect(
+                            g.x * TILE + 6,
+                            g.y * TILE + 6,
+                            TILE - 12,
+                            TILE - 12
+                        )
+                    );
+                }
+                if (roomKind === "boss") {
+                    ctx.fillStyle = "#ef4444";
+                    roomData.missiles.forEach((m) =>
+                        ctx.fillRect(
+                            m.x * TILE + 8,
+                            m.y * TILE + 8,
+                            TILE - 16,
+                            TILE - 16
+                        )
+                    );
+                }
+                if (roomKind === "mech") {
+                    ctx.fillStyle = "#f97316";
+                    roomData.pads.forEach((p) =>
+                        ctx.fillRect(
+                            p.x * TILE + 8,
+                            p.y * TILE + 8,
+                            TILE - 16,
+                            TILE - 16
+                        )
+                    );
+                }
+                // chests
+                if (roomData && roomData.chests) {
+                    ctx.fillStyle = "#a855f7";
+                    roomData.chests.forEach((c) =>
+                        ctx.fillRect(
+                            c.x * TILE + 10,
+                            c.y * TILE + 10,
+                            TILE - 20,
+                            TILE - 20
+                        )
+                    );
+                }
+                // exit for all except rest
+                if (roomKind !== "rest") {
+                    ctx.fillStyle = "#a78bfa";
+                    ctx.fillRect(
+                        exitTile.x * TILE + 8,
+                        exitTile.y * TILE + 8,
+                        TILE - 16,
+                        TILE - 16
+                    );
+                }
+                // player
+                ctx.fillStyle = "#e5e7eb";
+                ctx.beginPath();
+                ctx.arc(
+                    player.x * TILE + TILE / 2,
+                    player.y * TILE + TILE / 2,
+                    6,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+                // label
+                ctx.fillStyle = "#94a3b8";
+                ctx.fillText(
+                    `Phòng ${roomCount}/${TOTAL_ROOMS} - ${roomKind.toUpperCase()}`,
+                    8,
+                    16
+                );
+            }
+
+            function updateHUD() {
+                livesEl.textContent = lives;
+                scoreEl.textContent = score;
+                roomEl.textContent = `${roomCount} / ${TOTAL_ROOMS}`;
+            }
+            function openModalMsg(t, h) {
+                msgTitle.textContent = t;
+                msgText.innerHTML = h;
+                modalMsg.showModal();
+            }
+            function formatTime(s) {
+                const m = String(Math.floor(s / 60)).padStart(2, "0");
+                const r = String(s % 60).padStart(2, "0");
+                return `${m}:${r}`;
+            }
+            let timerId = null;
+            function startTimer() {
+                if (timerId) clearInterval(timerId);
+                timerId = setInterval(() => {
+                    timer--;
+                    timeEl.textContent = formatTime(timer);
+                    if (timer <= 0) {
+                        showOverlay("outro");
+                    }
+                }, 1000);
+            }
+
+            /* Flow */
+            function buildPool() {
+                const arr = [];
+                Object.keys(COUNTS).forEach((k) => {
+                    for (let i = 0; i < COUNTS[k]; i++) arr.push(k);
+                });
+                return shuffle(arr);
+            }
+            function resetGame(showMsg = false) {
+                lives = START_LIVES;
+                score = 0;
+                timer = TIMER_SEC;
+                timeEl.textContent = formatTime(timer);
+                startTimer();
+                roomCount = 0;
+                pool = buildPool();
+                // Force first room REST
+                let i = pool.indexOf("rest");
+                if (i > -1) {
+                    const t = pool.splice(i, 1)[0];
+                    pool.push(t);
+                }
+                if (showMsg)
+                    openModalMsg(
+                        "Reset",
+                        "Đã xáo trộn phòng. Bắt đầu ở phòng REST."
+                    );
+                newRoom();
+            }
+            function startGame() {
+                resetGame();
+            }
+            function nextRoom() {
+                if (roomCount >= TOTAL_ROOMS) {
+                    showOverlay("outro");
+                } else {
+                    newRoom();
+                }
+            }
+            function loseLife(reason) {
+                lives--;
+                updateHUD();
+                if (lives <= 0) {
+                    showOverlay("outro");
+                    return;
+                }
+                player = {
+                    x: roomKind === "rest" ? Math.floor(N / 2) : 1,
+                    y: roomKind === "rest" ? Math.floor(N / 2) : 1,
+                };
+                draw();
+                if (reason) openModalMsg("Mất mạng", reason);
+            }
+
+            /* Interactions */
+            function stepOn(x, y) {
+                // chests
+                if (roomData && roomData.chests) {
+                    const k = roomData.chests.findIndex(
+                        (c) => c.x === x && c.y === y
+                    );
+                    if (k > -1) {
+                        const prize = rand(4);
+                        let msg = "";
+                        if (prize == 0 && lives < START_LIVES) {
+                            lives++;
+                            msg = "+1 mạng";
+                        } else if (prize == 1) {
+                            timer = Math.min(timer + 60, TIMER_SEC);
+                            msg = "+60s";
+                        } else if (prize == 2) {
+                            score += 10;
+                            msg = "+10 điểm";
+                        } else {
+                            window.hasShield = true;
+                            msg = "Khiên 1 lần";
+                        }
+                        roomData.chests.splice(k, 1);
+                        updateHUD();
+                        openModalMsg("Rương 🎁", msg);
+                        draw();
+                        return;
+                    }
+                }
+                // exit
+                if (
+                    roomKind !== "rest" &&
+                    x === exitTile.x &&
+                    y === exitTile.y
+                ) {
+                    if (
+                        roomKind === "quiz" &&
+                        !roomData.answered.every((v) => v)
+                    ) {
+                        openModalMsg("Cổng khoá", "Cần trả lời đủ 10/10 câu.");
+                        return;
+                    }
+                    if (roomKind === "boss" && score < bossReq) {
+                        loseLife(
+                            `Điểm ${score} < yêu cầu ${bossReq}. <b>Thầy Phúc</b> bắn gục bạn!`
+                        );
+                        return;
+                    }
+                    score += 10;
+                    nextRoom();
+                    return;
+                }
+                if (roomKind === "quiz") {
+                    roomData.tiles.forEach((t, i) => {
+                        if (!roomData.answered[i] && t.x === x && t.y === y)
+                            askQuestion(i);
+                    });
+                }
+                if (roomKind === "hint") {
+                    roomData.tiles.forEach((t, i) => {
+                        if (t.x === x && t.y === y) {
+                            const tips = [
+                                "Giá trị thặng dư",
+                                "Thị trường",
+                                "Tiền tệ",
+                                "Độc quyền",
+                                "Vai trò Nhà nước",
+                            ];
+                            openModalMsg("Hint 🔍", tips[i % tips.length]);
+                            score += 1;
+                        }
+                    });
+                }
+                if (roomKind === "death") {
+                    roomData.traps.forEach((t) => {
+                        if (t.x === x && t.y === y) {
+                            if (window.hasShield) {
+                                window.hasShield = false;
+                                openModalMsg("Khiên 🛡️", "Bạn thoát bẫy!");
+                            } else loseLife("Bạn dẫm bẫy.");
+                        }
+                    });
+                }
+                if (roomKind === "rest") {
+                    const gate = [
+                        { x: Math.floor(N / 2), y: 1 },
+                        { x: N - 2, y: Math.floor(N / 2) },
+                        { x: Math.floor(N / 2), y: N - 2 },
+                        { x: 1, y: Math.floor(N / 2) },
+                    ].find((g) => g.x === x && g.y === y);
+                    if (gate) {
+                        score += 3;
+                        nextRoom();
+                    }
+                }
+                if (roomKind === "mech") {
+                    const pad = roomData.pads.find(
+                        (p) => p.x === x && p.y === y
+                    );
+                    if (pad) {
+                        const others = roomData.pads.filter(
+                            (p) => !(p.x === x && p.y === y)
+                        );
+                        const tp = others[rand(others.length)];
+                        player.x = tp.x;
+                        player.y = tp.y;
+                        draw();
+                    }
+                }
+            }
+            function askQuestion(idx) {
+                const it = roomData.questions[idx];
+                qTitle.textContent = `Câu hỏi MLN122 (${
+                    idx + 1
+                }/${INTERACT_QUIZ}) - ${it.tag}`;
+                qText.innerHTML = it.q;
+                hintArea.textContent = "Gợi ý: " + it.hint;
+                optsBox.innerHTML = "";
+                const opts = shuffle(it.choices.slice());
+                opts.forEach((opt) => {
+                    const b = document.createElement("button");
+                    b.className = "opt";
+                    b.textContent = opt;
+                    b.onclick = (e) => {
+                        e.preventDefault();
+                        modalQ.close();
+                        if (opt === it.a) {
+                            score += 5;
+                            roomData.answered[idx] = true;
+                            draw();
+                            if (roomData.answered.every((v) => v))
+                                openModalMsg(
+                                    "Mở cổng ⬜",
+                                    "Bạn đã hoàn tất 10/10 câu."
+                                );
+                        } else {
+                            if (window.hasShield) {
+                                window.hasShield = false;
+                                openModalMsg("Khiên 🛡️", "Bạn thoát -1 mạng!");
+                            } else loseLife("Sai câu hỏi.");
+                        }
+                    };
+                    optsBox.appendChild(b);
+                });
+                modalQ.showModal();
+            }
+
+            /* Movement */
+            const dirs = {
+                w: [0, -1],
+                a: [-1, 0],
+                s: [0, 1],
+                d: [1, 0],
+                ArrowUp: [0, -1],
+                ArrowLeft: [-1, 0],
+                ArrowDown: [0, 1],
+                ArrowRight: [1, 0],
+            };
+            window.addEventListener("keydown", (e) => {
+                const d = dirs[e.key];
+                if (!d) return;
+                e.preventDefault();
+                const nx = player.x + d[0] * SPEED,
+                    ny = player.y + d[1] * SPEED;
+                if (
+                    nx >= 0 &&
+                    nx < N &&
+                    ny >= 0 &&
+                    ny < N &&
+                    maze[ny][nx] === 0
+                ) {
+                    player.x = nx;
+                    player.y = ny;
+                    draw();
+                    stepOn(nx, ny);
+                }
+            });
+
+            /* Start with comic */
+            showOverlay("intro");
+        </script>
+    </body>
+</html>

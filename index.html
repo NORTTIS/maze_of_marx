@@ -1,0 +1,2677 @@
+<!DOCTYPE html>
+<html lang="vi">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>MLN122 - Maze of Marx</title>
+        <style>
+            /* CSS Styling */
+            html,
+            body {
+                height: 100%;
+            }
+            body {
+                margin: 0;
+                background: #0b0c12;
+                color: #e5e7eb;
+                font-family: ui-monospace, Consolas, monospace;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }
+            header {
+                background: #0f1324;
+                border-bottom: 2px solid #1e2a4b;
+                padding: 10px 12px;
+                position: sticky;
+                top: 0;
+                z-index: 3;
+            }
+            h1 {
+                font-size: 16px;
+                margin: 0;
+                color: #5ff9d1; /* Màu xanh ngọc */
+            }
+            .hud {
+                display: flex;
+                gap: 12px;
+                flex-wrap: wrap;
+                margin-top: 6px;
+                font-size: 14px;
+            }
+            .pill {
+                padding: 4px 10px;
+                border: 1px solid #1e2a4b;
+                border-radius: 8px;
+                background: #1e2a4b;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .pill span {
+                font-weight: bold;
+                color: #fca311; /* Màu cam */
+            }
+            main {
+                flex-grow: 1;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 20px;
+                position: relative;
+            }
+            canvas {
+                border: 4px solid #1e2a4b;
+                border-radius: 12px;
+                background: #1e2a4b;
+                box-shadow: 0 0 20px rgba(0, 255, 200, 0.1);
+            }
+            dialog {
+                border: none;
+                border-radius: 10px;
+                padding: 20px;
+                background: #1a1a2e;
+                color: #e5e7eb;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+                max-width: 90vw;
+                width: 400px;
+            }
+            dialog::backdrop {
+                background: rgba(0, 0, 0, 0.7);
+                backdrop-filter: blur(5px);
+            }
+            .modal-content h2 {
+                margin-top: 0;
+                color: #5ff9d1;
+            }
+            .options-box button {
+                display: block;
+                width: 100%;
+                padding: 12px;
+                margin-top: 10px;
+                border: none;
+                border-radius: 8px;
+                background: #ff5722;
+                color: white;
+                font-size: 16px;
+                cursor: pointer;
+                transition: background 0.2s, transform 0.1s;
+                font-weight: bold;
+            }
+            .options-box button:hover {
+                background: #e64a19;
+            }
+            .options-box button:active {
+                transform: scale(0.98);
+            }
+            .dice-display {
+                font-size: 48px;
+                text-align: center;
+                margin: 20px 0;
+                animation: roll 0.5s ease-in-out;
+            }
+            @keyframes roll {
+                0% {
+                    transform: rotateY(0deg);
+                }
+                100% {
+                    transform: rotateY(360deg);
+                }
+            }
+
+            .overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.9);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 10;
+                text-align: center;
+                padding: 20px;
+                box-sizing: border-box;
+            }
+            .overlay h2 {
+                color: #5ff9d1;
+            }
+            .overlay button {
+                margin-top: 20px;
+                padding: 12px 25px;
+                background: #fca311;
+                color: #0b0c12;
+                border: none;
+                border-radius: 8px;
+                font-size: 18px;
+                cursor: pointer;
+                font-weight: bold;
+                transition: background 0.2s;
+            }
+            .overlay button:hover {
+                background: #e6910d;
+            }
+
+            /* Comic overlay styles (Ver4 inspired) */
+            .comic {
+                position: absolute;
+                inset: 0;
+                display: grid;
+                place-items: center;
+                padding: 18px;
+            }
+            .panel-box {
+                width: min(920px, 95vw);
+                height: min(520px, 70vh);
+                background: #111429;
+                border: 4px solid #1f2a55;
+                border-radius: 12px;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+                display: grid;
+                grid-template-rows: 1fr auto;
+                overflow: hidden;
+            }
+            .panel-art {
+                background: linear-gradient(120deg, #1a2147, #0f1532);
+                display: grid;
+                place-items: center;
+                padding: 16px;
+                font-size: 28px;
+                position: relative;
+            }
+            .panel-caption {
+                border-top: 2px solid #1f2a55;
+                padding: 12px;
+                background: #0e1328;
+                min-height: 70px;
+            }
+            .type {
+                white-space: pre-wrap;
+            }
+            .panel-controls {
+                position: absolute;
+                right: 20px;
+                bottom: 16px;
+                display: flex;
+                gap: 8px;
+            }
+            .btn {
+                background: #3a56ff;
+                border: none;
+                color: #fff;
+                padding: 10px 14px;
+                border-radius: 8px;
+                cursor: pointer;
+            }
+            .btn.ghost {
+                background: #223;
+                color: #aab;
+            }
+            .blackout {
+                position: absolute;
+                inset: 0;
+                background: #000;
+                display: none;
+            }
+
+            /* Direction selection area */
+            .direction-field {
+                position: relative;
+                margin: 0 auto;
+                width: 200px;
+                height: 200px;
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                grid-template-rows: 1fr 1fr 1fr;
+                gap: 10px;
+            }
+            .dir-zone {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border: 2px solid #274060;
+                border-radius: 8px;
+                background: #162033;
+                color: #cfeef0;
+                font-weight: bold;
+                font-size: 14px;
+                transition: all 0.2s;
+            }
+            .dir-zone.active {
+                background: #5ff9d1;
+                color: #06222a;
+                border-color: #5ff9d1;
+            }
+            .dir-zone.north {
+                grid-column: 2;
+                grid-row: 1;
+            }
+            .dir-zone.west {
+                grid-column: 1;
+                grid-row: 2;
+            }
+            .dir-zone.center {
+                grid-column: 2;
+                grid-row: 2;
+            }
+            .dir-zone.east {
+                grid-column: 3;
+                grid-row: 2;
+            }
+            .dir-zone.south {
+                grid-column: 2;
+                grid-row: 3;
+            }
+
+            /* Direction selection specific styles */
+            #direction-selection {
+                max-width: 600px;
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                min-height: 400px;
+            }
+
+            #direction-selection h2 {
+                color: #5ff9d1;
+                font-size: 24px;
+                margin-bottom: 10px;
+            }
+
+            #direction-selection p {
+                color: #e5e7eb;
+                max-width: 400px;
+                margin: 0 auto 30px auto;
+            }
+
+            /* Side panel (right) for direction notes */
+            #side-panel {
+                position: fixed;
+                right: 12px;
+                top: 80px;
+                width: 260px;
+                background: #0f1220;
+                border: 1px solid #1e2a4b;
+                padding: 12px;
+                border-radius: 8px;
+                color: #e5e7eb;
+                z-index: 20;
+                font-size: 14px;
+            }
+            .direction-btn {
+                display: inline-block;
+                margin: 6px 4px 6px 0;
+                padding: 8px 10px;
+                border-radius: 6px;
+                background: #162033;
+                border: 1px solid #274060;
+                cursor: pointer;
+                color: #cfeef0;
+                font-weight: bold;
+            }
+            .direction-btn.selected {
+                background: #5ff9d1;
+                color: #06222a;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>MLN122 - Maze of Marx</h1>
+            <div class="hud">
+                <div class="pill">Mạng sống ❤️: <span id="lives">3</span></div>
+                <div class="pill">
+                    Phòng 🏠: <span id="room">Chương 1 / 6</span>
+                </div>
+                <div class="pill">Điểm số ⭐: <span id="score">0</span></div>
+                <div class="pill">
+                    Khiên 🛡️: <span id="shield-count">0</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <canvas id="maze-canvas"></canvas>
+
+            <!-- Modal cho câu hỏi và phần thưởng (sử dụng chung) -->
+            <dialog id="modal-event">
+                <div class="modal-content">
+                    <h2 id="modal-title">Sự kiện</h2>
+                    <p id="modal-message">Nội dung sự kiện.</p>
+                    <div class="options-box" id="modal-options">
+                        <button onclick="closeModal()">Đóng</button>
+                    </div>
+                </div>
+            </dialog>
+
+            <!-- Modal cho câu hỏi (Riêng) -->
+            <dialog id="modal-question">
+                <div class="modal-content">
+                    <h2 id="question-title">❓ Câu Hỏi Kinh Tế Chính Trị</h2>
+                    <p id="question-text">Đây là nội dung câu hỏi.</p>
+                    <div class="options-box" id="question-options">
+                        <!-- Options will be dynamically inserted here -->
+                    </div>
+                    <p style="margin-top: 15px; font-size: 12px">
+                        Đã trả lời đúng: <span id="q-correct-count">0</span> /
+                        <span id="q-required-count">5</span>
+                        <br />
+                        Số lần thử: <span id="retry-count">0</span>
+                    </p>
+                </div>
+            </dialog>
+
+            <!-- Overlay (Khởi đầu/Kết thúc) -->
+            <div id="game-overlay" class="overlay" style="display: none">
+                <!-- Comic-style intro -->
+                <div id="comic-intro" class="comic" style="display: none">
+                    <div id="blackout" class="blackout"></div>
+                    <div class="panel-box">
+                        <div class="panel-art" id="art">📕</div>
+                        <div class="panel-caption">
+                            <div class="type" id="caption">Đang tải...</div>
+                            <div class="panel-controls">
+                                <button id="next-btn" class="btn">
+                                    Tiếp →
+                                </button>
+                                <button id="skip-btn" class="btn ghost">
+                                    Bỏ qua
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Direction selection -->
+                <div id="direction-selection" style="display: none">
+                    <div style="text-align: center; margin-bottom: 30px">
+                        <h2 style="margin-bottom: 15px">Chọn Hướng Khởi Đầu</h2>
+                        <p
+                            style="
+                                margin-bottom: 20px;
+                                font-size: 16px;
+                                line-height: 1.4;
+                            "
+                        >
+                            Di chuyển nhân vật (W/A/S/D) để chọn hướng, nhấn
+                            Space để xác nhận.
+                        </p>
+                    </div>
+                    <div class="direction-field">
+                        <div class="dir-zone north" data-dir="north">
+                            Bắc<br />
+                        </div>
+                        <div class="dir-zone west" data-dir="west">
+                            Tây<br />
+                        </div>
+                        <div class="dir-zone center">🟡</div>
+                        <div class="dir-zone east" data-dir="east">
+                            Đông<br />
+                        </div>
+                        <div class="dir-zone south" data-dir="south">
+                            Nam<br />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Traditional overlay -->
+                <div id="traditional-overlay">
+                    <h2 id="overlay-title">Bắt Đầu Hành Trình</h2>
+                    <p id="overlay-message">
+                        Di chuyển bằng W, A, S, D hoặc phím mũi tên. Vượt tường
+                        bằng cách di chuyển vào tường (tốn 10 điểm).
+                    </p>
+                    <button onclick="startGame()">Bắt Đầu</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Side panel for direction notes -->
+        <aside id="side-panel">
+            <h3 id="panel-title">Chọn hướng ban đầu</h3>
+            <div id="direction-buttons" style="margin-bottom: 8px">
+                <button class="direction-btn" data-dir="east">Đông</button>
+                <button class="direction-btn" data-dir="west">Tây</button>
+                <button class="direction-btn" data-dir="north">Bắc</button>
+                <button class="direction-btn" data-dir="south">Nam</button>
+            </div>
+            <div
+                id="direction-locked"
+                style="display: none; margin-bottom: 8px"
+            >
+                <div
+                    class="pill"
+                    style="
+                        background: #5ff9d1;
+                        color: #06222a;
+                        padding: 8px 12px;
+                    "
+                >
+                    <strong
+                        >Hướng đã chọn:
+                        <span id="locked-direction">---</span></strong
+                    >
+                </div>
+            </div>
+            <div id="side-notes">
+                Chưa chọn hướng. Hãy chọn 1 hướng trước khi bắt đầu.
+            </div>
+            <div style="margin-top: 10px; font-size: 12px; color: #9ca3af">
+                <span id="space-hint"
+                    >Ấn Space để bật/tắt chế độ muốn vượt tường (khi bật, nhấn
+                    vào tường để xuyên).</span
+                >
+            </div>
+        </aside>
+
+        <script>
+            // Biến toàn cục từ Canvas (giả định)
+            const appId =
+                typeof __app_id !== "undefined" ? __app_id : "default-app-id";
+
+            // --- 1. Cấu hình và Icon hóa ---
+            const canvas = document.getElementById("maze-canvas");
+            const ctx = canvas.getContext("2d");
+
+            // Kích thước mê cung (giảm số lượng phòng)
+            const N = 15; // Kích thước lưới
+            const SPEED = 1; // Bước di chuyển
+            const CELL_SIZE = 40; // Kích thước ô
+
+            // Cấu hình game
+            const MAX_LIVES = 3;
+            const WALL_BYPASS_COST = 10;
+            const MAX_EVENTS = 10; // Tổng số phòng sự kiện
+            const QUESTIONS_MIN = 5; // Tối thiểu câu trả lời đúng để qua phòng
+            const QUESTIONS_MAX = 10; // Tổng câu hỏi tối đa trong 1 phòng
+
+            // Hằng số Icon (SVG)
+            // LƯU Ý: Đây là mã SVG/HTML, được chèn vào canvas thông qua DOM hoặc drawImage
+            const ICON_QUESTION_SVG =
+                '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5ff9d1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-help-circle"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>'; // Ô câu hỏi (2)
+            const ICON_REWARD_SVG =
+                '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fca311" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-gift"><polyline points="20 12 12 12 12 20"/><path d="M20 13V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h7"/></svg>'; // Ô thưởng mới (3)
+            const ICON_SHIELD_SVG =
+                '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>'; // Vật phẩm khiên (4)
+            const ICON_EXIT_SVG =
+                '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-castle"><path d="M22 17a2 2 0 0 0-2-2v-2h-3V7l-5-5-5 5v6H4v2a2 2 0 0 0-2 2h20Z"/><path d="M2 17v3h3"/><path d="M17 17v3h5"/><path d="M15 12V9"/><path d="M9 12V9"/></svg>'; // Lối thoát cuối game (5)
+            const ICON_CHAPTER_EXIT_SVG =
+                '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9333ea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-portal"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>'; // Cổng chuyển chương (6)
+
+            // Cần tạo đối tượng Image cho mỗi icon để vẽ lên Canvas
+            const iconImages = {};
+            const iconData = {
+                2: { svg: ICON_QUESTION_SVG, color: "#5ff9d1" },
+                3: { svg: ICON_REWARD_SVG, color: "#fca311" },
+                4: { svg: ICON_SHIELD_SVG, color: "#60a5fa" },
+                5: { svg: ICON_EXIT_SVG, color: "#ef4444" },
+                6: { svg: ICON_CHAPTER_EXIT_SVG, color: "#9333ea" },
+            };
+
+            // Hàm chuyển SVG sang đối tượng Image để vẽ lên Canvas
+            function loadIcons() {
+                Object.keys(iconData).forEach((key) => {
+                    const img = new Image();
+                    // Để vẽ SVG lên canvas, ta cần chuyển nó thành Data URL
+                    const svgData = `<svg xmlns="http://www.w3.org/2000/svg" width="${CELL_SIZE}" height="${CELL_SIZE}" viewBox="0 0 24 24">${iconData[
+                        key
+                    ].svg
+                        .split(">")
+                        .slice(1)
+                        .join(">")
+                        .replace("</svg>", "")}</svg>`;
+                    img.src =
+                        "data:image/svg+xml;base64," +
+                        btoa(unescape(encodeURIComponent(svgData)));
+                    iconImages[key] = img;
+                });
+            }
+
+            // Cập nhật kích thước canvas
+            canvas.width = N * CELL_SIZE;
+            canvas.height = N * CELL_SIZE;
+
+            // Dữ liệu trò chơi
+            let player = { x: 1, y: 1, lives: MAX_LIVES, score: 0, shield: 0 };
+            let maze = [];
+            let gameEvents = [];
+            let isGameRunning = false;
+            // New gameplay state
+            let chosenDirection = null; // 'east'|'west'|'north'|'south'
+            let directionLocked = false; // once game starts, direction cannot be changed
+            let bypassFlag = false; // toggled by Space
+
+            // Ver4-style room system - 6 chapters
+            let currentRoomIndex = 1; // starts at room 1/6
+            let totalRooms = 6;
+            let roomData = null;
+            let chapterQuestionsCorrect = 0; // Track correct answers in current chapter
+
+            // Mini-room state (when entering event-specific small mazes)
+            let inRoom = false;
+            let currentRoom = null;
+            let roomPlayer = null;
+
+            // Intro system state
+            let introMode = "comic"; // 'comic' | 'direction' | 'done'
+            let panelIndex = 0;
+            let typingId = null;
+            let selectorPlayer = { x: 1, y: 1 }; // player position in direction selector
+
+            // Dữ liệu câu hỏi theo từng chương Kinh tế chính trị Mác-Lênin
+            const questionsByChapter = {
+                1: [
+                    // Chương I: Tổng quan về Kinh tế Chính trị Mác-Lênin
+                    {
+                        q: "Đối tượng nghiên cứu của Kinh tế chính trị Mác-Lênin là gì?",
+                        options: [
+                            "Quan hệ sản xuất",
+                            "Lực lượng sản xuất",
+                            "Phương thức sản xuất",
+                            "Tất cả các đáp án trên",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Phương pháp nghiên cứu cơ bản của Kinh tế chính trị Mác-Lênin là gì?",
+                        options: [
+                            "Duy vật biện chứng",
+                            "Duy tâm biện chứng",
+                            "Siêu hình học",
+                            "Thực nghiệm",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Quy luật cơ bản nhất chi phối sự vận động của các hình thái kinh tế-xã hội là gì?",
+                        options: [
+                            "Quy luật giá trị",
+                            "Quy luật cung cầu",
+                            "Quy luật phù hợp của quan hệ sản xuất với trình độ phát triển của lực lượng sản xuất",
+                            "Quy luật cạnh tranh",
+                        ],
+                        answer: 2,
+                    },
+                    {
+                        q: "Lực lượng sản xuất bao gồm những yếu tố nào?",
+                        options: [
+                            "Người lao động và tư liệu sản xuất",
+                            "Quan hệ sản xuất",
+                            "Ý thức xã hội",
+                            "Kiến trúc thượng tầng",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Quan hệ sản xuất là quan hệ giữa?",
+                        options: [
+                            "Người với tự nhiên",
+                            "Người với người trong quá trình sản xuất",
+                            "Người với công nghệ",
+                            "Người với thị trường",
+                        ],
+                        answer: 1,
+                    },
+                    {
+                        q: "Cơ sở hạ tầng kinh tế bao gồm?",
+                        options: [
+                            "Lực lượng sản xuất và quan hệ sản xuất",
+                            "Chỉ lực lượng sản xuất",
+                            "Chỉ quan hệ sản xuất",
+                            "Ý thức xã hội",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Kiến trúc thượng tầng xã hội bao gồm?",
+                        options: [
+                            "Quan hệ sản xuất",
+                            "Các quan hệ chính trị, pháp lý và ý thức xã hội",
+                            "Lực lượng sản xuất",
+                            "Tư liệu sản xuất",
+                        ],
+                        answer: 1,
+                    },
+                    {
+                        q: "Hình thái kinh tế-xã hội là gì?",
+                        options: [
+                            "Chỉ cơ sở hạ tầng",
+                            "Chỉ kiến trúc thượng tầng",
+                            "Sự thống nhất giữa cơ sở hạ tầng và kiến trúc thượng tầng",
+                            "Lực lượng sản xuất",
+                        ],
+                        answer: 2,
+                    },
+                    {
+                        q: "Động lực phát triển xã hội là gì?",
+                        options: [
+                            "Mâu thuẫn giữa lực lượng sản xuất và quan hệ sản xuất",
+                            "Cạnh tranh",
+                            "Đổi mới công nghệ",
+                            "Chính sách nhà nước",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Tính quy luật khách quan của lịch sử có nghĩa là gì?",
+                        options: [
+                            "Con người không thể tác động vào lịch sử",
+                            "Lịch sử phát triển theo ý muốn chủ quan",
+                            "Lịch sử phát triển theo những quy luật khách quan, độc lập với ý thức con người",
+                            "Lịch sử được quyết định bởi thiên nhiên",
+                        ],
+                        answer: 2,
+                    },
+                ],
+                2: [
+                    // Chương II: Hàng hóa, thị trường và vai trò của các chủ thể tham gia thị trường
+                    {
+                        q: "Hàng hóa là gì?",
+                        options: [
+                            "Sản phẩm lao động",
+                            "Sản phẩm lao động để trao đổi",
+                            "Vật có ích",
+                            "Tất cả đều đúng",
+                        ],
+                        answer: 1,
+                    },
+                    {
+                        q: "Hai thuộc tính cơ bản của hàng hóa là gì?",
+                        options: [
+                            "Giá trị sử dụng và giá trị trao đổi",
+                            "Giá trị sử dụng và giá trị",
+                            "Giá trị và giá cả",
+                            "Chất lượng và số lượng",
+                        ],
+                        answer: 1,
+                    },
+                    {
+                        q: "Giá trị của hàng hóa được quyết định bởi?",
+                        options: [
+                            "Thời gian lao động cá biệt",
+                            "Thời gian lao động xã hội cần thiết",
+                            "Giá cả thị trường",
+                            "Chi phí sản xuất",
+                        ],
+                        answer: 1,
+                    },
+                    {
+                        q: "Tiền tệ xuất hiện từ?",
+                        options: [
+                            "Quyết định của nhà nước",
+                            "Sự phát triển của trao đổi hàng hóa",
+                            "Nhu cầu của con người",
+                            "Khoa học công nghệ",
+                        ],
+                        answer: 1,
+                    },
+                    {
+                        q: "Các chức năng cơ bản của tiền tệ là?",
+                        options: [
+                            "Thước đo giá trị, phương tiện lưu thông, phương tiện thanh toán, phương tiện tích trữ",
+                            "Chỉ thước đo giá trị",
+                            "Chỉ phương tiện lưu thông",
+                            "Chỉ để tích trữ",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Thị trường là gì?",
+                        options: [
+                            "Nơi mua bán hàng hóa",
+                            "Tổng thể các quan hệ trao đổi hàng hóa",
+                            "Cửa hàng",
+                            "Khu vực địa lý",
+                        ],
+                        answer: 1,
+                    },
+                    {
+                        q: "Quy luật giá trị biểu hiện như thế nào?",
+                        options: [
+                            "Giá cả dao động quanh giá trị",
+                            "Giá cả luôn bằng giá trị",
+                            "Giá cả cao hơn giá trị",
+                            "Giá cả thấp hơn giá trị",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Vai trò tích cực của quy luật giá trị trong nền kinh tế hàng hóa là gì?",
+                        options: [
+                            "Điều tiết sản xuất",
+                            "Kích thích nâng cao năng suất lao động",
+                            "Phân hóa người sản xuất hàng hóa nhỏ",
+                            "Cả A và B",
+                        ],
+                        answer: 3,
+                    },
+                    {
+                        q: "Các chủ thể tham gia thị trường bao gồm?",
+                        options: [
+                            "Hộ gia đình, doanh nghiệp, chính phủ",
+                            "Chỉ doanh nghiệp",
+                            "Chỉ hộ gia đình",
+                            "Chỉ chính phủ",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Cơ chế thị trường hoạt động dựa trên?",
+                        options: [
+                            "Kế hoạch nhà nước",
+                            "Quan hệ cung cầu và giá cả",
+                            "Ý muốn chủ quan",
+                            "Truyền thống",
+                        ],
+                        answer: 1,
+                    },
+                ],
+                3: [
+                    // Chương III: Giá trị thặng dư trong nền kinh tế thị trường
+                    {
+                        q: "Giá trị thặng dư là gì?",
+                        options: [
+                            "Phần giá trị mới do người công nhân tạo ra vượt quá giá trị sức lao động",
+                            "Lợi nhuận của doanh nghiệp",
+                            "Tiền lương của công nhân",
+                            "Chi phí sản xuất",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Điều kiện hình thành giá trị thặng dư là gì?",
+                        options: [
+                            "Tồn tại sở hữu tư nhân về tư liệu sản xuất",
+                            "Sức lao động trở thành hàng hóa",
+                            "Cả A và B",
+                            "Chỉ có công nghệ cao",
+                        ],
+                        answer: 2,
+                    },
+                    {
+                        q: "Giá trị thặng dư tuyệt đối được tạo ra bằng cách nào?",
+                        options: [
+                            "Kéo dài thời gian lao động",
+                            "Nâng cao năng suất lao động",
+                            "Giảm tiền lương",
+                            "Tăng giá bán",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Giá trị thặng dư tương đối được tạo ra bằng cách nào?",
+                        options: [
+                            "Kéo dài thời gian lao động",
+                            "Rút ngắn thời gian lao động cần thiết",
+                            "Giảm tiền lương",
+                            "Tăng giá bán",
+                        ],
+                        answer: 1,
+                    },
+                    {
+                        q: "Tỷ suất giá trị thặng dư được tính bằng?",
+                        options: ["m/v", "m/c", "m/(c+v)", "v/m"],
+                        answer: 0,
+                    },
+                    {
+                        q: "Tư bản bất biến (c) là gì?",
+                        options: [
+                            "Phần tư bản dùng mua sức lao động",
+                            "Phần tư bản dùng mua tư liệu sản xuất",
+                            "Toàn bộ tư bản",
+                            "Lợi nhuận",
+                        ],
+                        answer: 1,
+                    },
+                    {
+                        q: "Tư bản khả biến (v) là gì?",
+                        options: [
+                            "Phần tư bản dùng mua tư liệu sản xuất",
+                            "Phần tư bản dùng mua sức lao động",
+                            "Toàn bộ tư bản",
+                            "Giá trị thặng dư",
+                        ],
+                        answer: 1,
+                    },
+                    {
+                        q: "Tỷ suất lợi nhuận được tính bằng?",
+                        options: ["m/v", "m/(c+v)", "m/c", "v/c"],
+                        answer: 1,
+                    },
+                    {
+                        q: "Quy luật tỷ suất lợi nhuận có xu hướng giảm dần được Marx phát hiện dựa trên?",
+                        options: [
+                            "Sự gia tăng cấu tạo hữu cơ của tư bản",
+                            "Sự giảm năng suất lao động",
+                            "Sự tăng tiền lương",
+                            "Sự giảm giá hàng hóa",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Bản chất của chế độ tư bản chủ nghĩa là gì?",
+                        options: [
+                            "Bóc lột giá trị thặng dư",
+                            "Phát triển kinh tế",
+                            "Tự do kinh doanh",
+                            "Cạnh tranh công bằng",
+                        ],
+                        answer: 0,
+                    },
+                ],
+                4: [
+                    // Chương IV: Cạnh tranh và độc quyền trong nền kinh tế thị trường
+                    {
+                        q: "Cạnh tranh tự do là gì?",
+                        options: [
+                            "Cạnh tranh không có sự can thiệp của nhà nước",
+                            "Cạnh tranh giữa các doanh nghiệp nhỏ",
+                            "Cạnh tranh trong điều kiện không có độc quyền",
+                            "Tất cả đều đúng",
+                        ],
+                        answer: 2,
+                    },
+                    {
+                        q: "Độc quyền tư bản chủ nghĩa xuất hiện từ?",
+                        options: [
+                            "Quyết định của nhà nước",
+                            "Sự phát triển của cạnh tranh tự do",
+                            "Khoa học công nghệ",
+                            "Ý muốn của tư bản gia",
+                        ],
+                        answer: 1,
+                    },
+                    {
+                        q: "Các hình thức độc quyền chủ yếu bao gồm?",
+                        options: [
+                            "Cartel, Syndicate, Trust, Concern",
+                            "Chỉ Cartel",
+                            "Chỉ Trust",
+                            "Chỉ Concern",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Lợi nhuận độc quyền được hình thành từ?",
+                        options: [
+                            "Giá độc quyền cao hơn giá trị",
+                            "Năng suất lao động cao",
+                            "Chi phí sản xuất thấp",
+                            "Chất lượng sản phẩm tốt",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Tư bản tài chính là gì?",
+                        options: [
+                            "Sự kết hợp giữa tư bản công nghiệp và tư bản ngân hàng",
+                            "Chỉ tư bản ngân hàng",
+                            "Chỉ tư bản công nghiệp",
+                            "Tư bản thương mại",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Mâu thuẫn cơ bản của chủ nghĩa tư bản độc quyền là gì?",
+                        options: [
+                            "Giữa tính chất xã hội của sản xuất và chiếm hữu tư nhân",
+                            "Giữa các tập đoàn độc quyền",
+                            "Giữa nhà nước và doanh nghiệp",
+                            "Giữa lao động và tư bản",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Cuộc khủng hoảng kinh tế chu kỳ trong chủ nghĩa tư bản là biểu hiện của?",
+                        options: [
+                            "Thiên tai",
+                            "Chiến tranh",
+                            "Mâu thuẫn cơ bản của chế độ tư bản chủ nghĩa",
+                            "Chính sách sai lầm",
+                        ],
+                        answer: 2,
+                    },
+                    {
+                        q: "Các giai đoạn của chu kỳ khủng hoảng kinh tế tư bản chủ nghĩa?",
+                        options: [
+                            "Khủng hoảng, trầm lắng, phục hồi, phồn vinh",
+                            "Chỉ có khủng hoảng",
+                            "Chỉ có phồn vinh",
+                            "Khủng hoảng và phục hồi",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Nguyên nhân sâu xa của khủng hoảng kinh tế tư bản chủ nghĩa là gì?",
+                        options: [
+                            "Sản xuất quá mức",
+                            "Tiêu dùng không đủ",
+                            "Mâu thuẫn giữa tính chất xã hội của sản xuất và chiếm hữu tư nhân",
+                            "Cạnh tranh quá khốc liệt",
+                        ],
+                        answer: 2,
+                    },
+                    {
+                        q: "Vai trò của nhà nước trong nền kinh tế thị trường hiện đại?",
+                        options: [
+                            "Không can thiệp",
+                            "Can thiệp toàn diện",
+                            "Can thiệp để điều tiết và khắc phục khuyết tật của thị trường",
+                            "Chỉ thu thuế",
+                        ],
+                        answer: 2,
+                    },
+                ],
+                5: [
+                    // Chương V: Kinh tế thị trường định hướng xã hội chủ nghĩa và các quan hệ lợi ích kinh tế ở Việt Nam
+                    {
+                        q: "Đặc trung cơ bản của kinh tế thị trường định hướng xã hội chủ nghĩa ở Việt Nam là gì?",
+                        options: [
+                            "Đa sở hữu với vai trò chủ đạo của kinh tế nhà nước",
+                            "Chỉ có kinh tế nhà nước",
+                            "Chỉ có kinh tế tư nhân",
+                            "Không có sự điều tiết của nhà nước",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Các thành phần kinh tế trong nền kinh tế Việt Nam hiện nay?",
+                        options: [
+                            "Kinh tế nhà nước, kinh tế tập thể, kinh tế tư nhân, kinh tế có vốn đầu tư nước ngoài",
+                            "Chỉ kinh tế nhà nước",
+                            "Chỉ kinh tế tư nhân",
+                            "Kinh tế nhà nước và kinh tế tư nhân",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Vai trò của kinh tế nhà nước trong nền kinh tế Việt Nam?",
+                        options: [
+                            "Độc quyền hoàn toàn",
+                            "Vai trò chủ đạo, giữ vai trò định hướng",
+                            "Không có vai trò",
+                            "Vai trò bổ sung",
+                        ],
+                        answer: 1,
+                    },
+                    {
+                        q: "Mục tiêu phát triển của kinh tế thị trường định hướng xã hội chủ nghĩa là gì?",
+                        options: [
+                            "Tối đa hóa lợi nhuận",
+                            "Dân giàu, nước mạnh, dân chủ, công bằng, văn minh",
+                            "Chỉ tăng trưởng kinh tế",
+                            "Chỉ công bằng xã hội",
+                        ],
+                        answer: 1,
+                    },
+                    {
+                        q: "Quan hệ phân phối trong nền kinh tế thị trường định hướng xã hội chủ nghĩa?",
+                        options: [
+                            "Bình quân tuyệt đối",
+                            "Theo lao động và hiệu quả kinh doanh",
+                            "Chỉ theo lao động",
+                            "Chỉ theo vốn",
+                        ],
+                        answer: 1,
+                    },
+                    {
+                        q: "Các chính sách xã hội trong kinh tế thị trường định hướng xã hội chủ nghĩa?",
+                        options: [
+                            "Bảo đảm an sinh xã hội, giảm nghèo, phát triển giáo dục-y tế",
+                            "Không cần chính sách xã hội",
+                            "Chỉ lo phát triển kinh tế",
+                            "Chỉ giảm nghèo",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Vai trò của nhà nước trong kinh tế thị trường định hướng xã hội chủ nghĩa?",
+                        options: [
+                            "Không can thiệp",
+                            "Định hướng, điều tiết và quản lý vĩ mô",
+                            "Quản lý vi mô trực tiếp",
+                            "Chỉ thu thuế",
+                        ],
+                        answer: 1,
+                    },
+                    {
+                        q: "Đổi mới kinh tế ở Việt Nam bắt đầu từ năm nào?",
+                        options: ["1975", "1986", "1990", "1995"],
+                        answer: 1,
+                    },
+                    {
+                        q: "Nội dung cơ bản của đổi mới kinh tế ở Việt Nam?",
+                        options: [
+                            "Chuyển từ kinh tế kế hoạch hóa tập trung sang kinh tế thị trường định hướng xã hội chủ nghĩa",
+                            "Chỉ tư nhân hóa",
+                            "Chỉ phát triển công nghiệp",
+                            "Chỉ mở cửa kinh tế",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Thành tựu cơ bản của đổi mới kinh tế ở Việt Nam?",
+                        options: [
+                            "Tăng trưởng kinh tế cao và bền vững, nâng cao đời sống nhân dân",
+                            "Chỉ tăng trưởng kinh tế",
+                            "Chỉ cải thiện đời sống",
+                            "Không có thành tựu đáng kể",
+                        ],
+                        answer: 0,
+                    },
+                ],
+                6: [
+                    // Chương VI: Công nghiệp hóa, hiện đại hóa và hội nhập kinh tế quốc tế của Việt Nam
+                    {
+                        q: "Mục tiêu của công nghiệp hóa, hiện đại hóa ở Việt Nam là gì?",
+                        options: [
+                            "Chuyển đổi từ nước nông nghiệp sang nước công nghiệp hiện đại",
+                            "Chỉ phát triển công nghiệp",
+                            "Chỉ hiện đại hóa nông nghiệp",
+                            "Chỉ phát triển dịch vụ",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Con đường công nghiệp hóa của Việt Nam có đặc điểm gì?",
+                        options: [
+                            "Công nghiệp hóa gắn với hiện đại hóa",
+                            "Chỉ công nghiệp hóa",
+                            "Chỉ hiện đại hóa",
+                            "Không có đặc điểm riêng",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Vai trò của khoa học công nghệ trong công nghiệp hóa, hiện đại hóa?",
+                        options: [
+                            "Động lực quan trọng",
+                            "Không quan trọng",
+                            "Chỉ hỗ trợ",
+                            "Vai trò thứ yếu",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Hội nhập kinh tế quốc tế của Việt Nam có đặc điểm gì?",
+                        options: [
+                            "Chủ động, tích cực, toàn diện và có chọn lọc",
+                            "Thụ động",
+                            "Chỉ xuất khẩu",
+                            "Chỉ nhập khẩu",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Việt Nam gia nhập WTO vào năm nào?",
+                        options: ["2005", "2007", "2008", "2010"],
+                        answer: 1,
+                    },
+                    {
+                        q: "Lợi ích của hội nhập kinh tế quốc tế đối với Việt Nam?",
+                        options: [
+                            "Mở rộng thị trường, thu hút đầu tư, chuyển giao công nghệ",
+                            "Chỉ xuất khẩu hàng hóa",
+                            "Chỉ thu hút đầu tư",
+                            "Không có lợi ích",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Thách thức của hội nhập kinh tế quốc tế đối với Việt Nam?",
+                        options: [
+                            "Cạnh tranh khốc liệt, phụ thuộc kinh tế, tác động tiêu cực của toàn cầu hóa",
+                            "Không có thách thức",
+                            "Chỉ có cạnh tranh",
+                            "Chỉ có phụ thuộc",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Định hướng phát triển kinh tế đối ngoại của Việt Nam?",
+                        options: [
+                            "Đa dạng hóa, đa phương hóa các quan hệ kinh tế đối ngoại",
+                            "Chỉ phụ thuộc một thị trường",
+                            "Đóng cửa kinh tế",
+                            "Chỉ hợp tác song phương",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Vai trô của FDI trong phát triển kinh tế Việt Nam?",
+                        options: [
+                            "Bổ sung vốn, chuyển giao công nghệ, tạo việc làm",
+                            "Chỉ bổ sung vốn",
+                            "Chỉ tạo việc làm",
+                            "Không có vai trò",
+                        ],
+                        answer: 0,
+                    },
+                    {
+                        q: "Mô hình tăng trưởng kinh tế mới của Việt Nam hướng tới?",
+                        options: [
+                            "Tăng trưởng dựa trên năng suất, chất lượng, hiệu quả và khoa học công nghệ",
+                            "Chỉ tăng trưởng về quy mô",
+                            "Chỉ dựa vào tài nguyên thiên nhiên",
+                            "Chỉ dựa vào lao động giá rẻ",
+                        ],
+                        answer: 0,
+                    },
+                ],
+            };
+
+            // --- 2. Khởi tạo & State ---
+
+            // Tạo mê cung ngẫu nhiên (sử dụng Depth-First Search)
+            function generateMaze(w, h) {
+                const grid = Array.from({ length: h }, () => Array(w).fill(1)); // 1 là tường
+                const stack = [];
+                let current = { x: 1, y: 1 };
+                grid[current.y][current.x] = 0; // 0 là đường đi
+                stack.push(current);
+
+                const getNeighbors = (p) => {
+                    const neighbors = [];
+                    [
+                        [0, 2],
+                        [0, -2],
+                        [2, 0],
+                        [-2, 0],
+                    ].forEach(([dx, dy]) => {
+                        const nx = p.x + dx,
+                            ny = p.y + dy;
+                        if (
+                            nx > 0 &&
+                            nx < w - 1 &&
+                            ny > 0 &&
+                            ny < h - 1 &&
+                            grid[ny][nx] === 1
+                        ) {
+                            neighbors.push({
+                                x: nx,
+                                y: ny,
+                                wallX: p.x + dx / 2,
+                                wallY: p.y + dy / 2,
+                            });
+                        }
+                    });
+                    return neighbors;
+                };
+
+                while (stack.length > 0) {
+                    current = stack[stack.length - 1];
+                    const neighbors = getNeighbors(current);
+
+                    if (neighbors.length > 0) {
+                        const next =
+                            neighbors[
+                                Math.floor(Math.random() * neighbors.length)
+                            ];
+                        grid[next.wallY][next.wallX] = 0; // Phá tường
+                        grid[next.y][next.x] = 0; // Mở ô mới
+                        stack.push(next);
+                    } else {
+                        stack.pop();
+                    }
+                }
+                return grid;
+            }
+
+            // Đặt sự kiện vào mê cung
+            function placeEvents() {
+                gameEvents = [];
+                // Event types order is neutral; later we will bias events based on chosenDirection
+                const eventTypes = [2, 3, 4, 2, 3, 4, 2, 3, 4, 5]; // 2: Hỏi, 3: Thưởng, 4: Khiên, 5: Thoát
+                let placedCount = 0;
+
+                while (placedCount < MAX_EVENTS) {
+                    const rx = Math.floor(Math.random() * (N - 2)) + 1;
+                    const ry = Math.floor(Math.random() * (N - 2)) + 1;
+
+                    // Chỉ đặt trên đường đi (giá trị 0) và không phải ô bắt đầu (1, 1)
+                    if (
+                        maze[ry][rx] === 0 &&
+                        (rx !== player.x || ry !== player.y)
+                    ) {
+                        // Allow direction influence: if chosenDirection is set, bias event types
+                        let type = eventTypes[placedCount];
+                        if (chosenDirection === "east") {
+                            // East: more questions with higher reward
+                            if (Math.random() < 0.6) type = 2;
+                        } else if (chosenDirection === "west") {
+                            // West: slightly more hazards (questions where wrong = -5)
+                            if (Math.random() < 0.5) type = 2;
+                        } else if (chosenDirection === "north") {
+                            // North: more rewards
+                            if (Math.random() < 0.6) type = 3;
+                        } else if (chosenDirection === "south") {
+                            // South: more walls? we keep normal distribution but bypass is free
+                        }
+                        maze[ry][rx] = type;
+
+                        // Lưu thông tin sự kiện
+                        gameEvents.push({
+                            x: rx,
+                            y: ry,
+                            type: type,
+                            // Dữ liệu cho phòng hỏi (type 2)
+                            isCleared: false,
+                            questionsCorrect: 0,
+                            questionsCount:
+                                Math.floor(
+                                    Math.random() *
+                                        (QUESTIONS_MAX - QUESTIONS_MIN + 1)
+                                ) + QUESTIONS_MIN,
+                            // Dữ liệu cho phòng thưởng (type 3)
+                            openedTimes: 0,
+                        });
+                        placedCount++;
+                    }
+                }
+            }
+
+            function initGame() {
+                // Lock direction selection
+                directionLocked = true;
+                updateSidebarForGameplay();
+
+                // Initialize maze-based chapter system
+                currentRoomIndex = 1;
+                chapterQuestionsCorrect = 0; // Reset chapter progress
+                isGameRunning = true;
+                player = { x: 1, y: 1, lives: MAX_LIVES, score: 0, shield: 0 };
+
+                // Start with first chapter maze
+                const mazeSize = 15;
+                maze = generateMaze(mazeSize, mazeSize);
+                mazeWidth = mazeSize;
+                mazeHeight = mazeSize;
+
+                // Place events in the maze
+                placeRoomEvents();
+                updateHUD();
+                draw();
+            }
+
+            function placeRoomEvents() {
+                gameEvents = [];
+
+                // Each maze corresponds to a chapter (1-6)
+                // Create exactly 10 question events per chapter
+                let baseEventTypes = [];
+
+                // Add exactly 10 question events (each contains 1 question)
+                for (let i = 0; i < 10; i++) {
+                    baseEventTypes.push(2); // question type
+                }
+
+                // Add 1-2 reward chests per maze
+                const rewardCount = Math.floor(Math.random() * 2) + 1; // 1 or 2 rewards
+                for (let i = 0; i < rewardCount; i++) {
+                    baseEventTypes.push(3);
+                }
+
+                // Add some shields
+                baseEventTypes.push(4, 4);
+
+                // Add exit event for final chapter
+                if (currentRoomIndex === totalRooms) {
+                    baseEventTypes.push(5); // Exit only in final chapter
+                }
+
+                // Adjust based on chosen direction (add extra items, not questions)
+                if (chosenDirection === "east") {
+                    // East gets bonus points per question, no need for extra questions
+                } else if (chosenDirection === "north") {
+                    // Add one more reward (but still limited)
+                    if (rewardCount === 1) baseEventTypes.push(3);
+                } else if (chosenDirection === "west") {
+                    // Add more shields (for safety)
+                    baseEventTypes.push(4, 4);
+                } else if (chosenDirection === "south") {
+                    // Balanced distribution - add one extra shield
+                    baseEventTypes.push(4);
+                }
+
+                let placedCount = 0;
+                const maxEvents = Math.min(baseEventTypes.length, 12); // More events per maze
+
+                while (placedCount < maxEvents) {
+                    const rx = Math.floor(Math.random() * (N - 2)) + 1;
+                    const ry = Math.floor(Math.random() * (N - 2)) + 1;
+
+                    if (
+                        maze[ry][rx] === 0 &&
+                        (rx !== player.x || ry !== player.y)
+                    ) {
+                        const type = baseEventTypes[placedCount];
+                        maze[ry][rx] = type;
+
+                        gameEvents.push({
+                            x: rx,
+                            y: ry,
+                            type: type,
+                            isCleared: false,
+                            questionsCorrect: 0,
+                            questionsCount: type === 2 ? 1 : 10, // 1 question per question event, 10 for others
+                            questionsMin: type === 2 ? 1 : 5, // Need 1 correct for question events
+                            chapterIndex: currentRoomIndex, // Link to chapter
+                            openedTimes: 0,
+                            // For question events, pre-assign a specific question
+                            assignedQuestionIndex:
+                                type === 2
+                                    ? Math.floor(
+                                          Math.random() *
+                                              (
+                                                  questionsByChapter[
+                                                      currentRoomIndex
+                                                  ] || questionsByChapter[1]
+                                              ).length
+                                      )
+                                    : null,
+                            // Retry system tracking
+                            questionAttempts: {},
+                            shuffledOptions: {},
+                            retryingQuestion: false,
+                        });
+                        placedCount++;
+                    }
+                }
+
+                // Always add a way to progress to next chapter (if not final)
+                if (currentRoomIndex < totalRooms) {
+                    addChapterExit();
+                }
+            }
+
+            // Add a chapter exit portal to progress to next maze - always at corner
+            function addChapterExit() {
+                // Define corner positions (top-left, top-right, bottom-left, bottom-right)
+                const corners = [
+                    { x: 1, y: 1 }, // top-left
+                    { x: N - 2, y: 1 }, // top-right
+                    { x: 1, y: N - 2 }, // bottom-left
+                    { x: N - 2, y: N - 2 }, // bottom-right
+                ];
+
+                // Try each corner until we find an available spot
+                let exitPlaced = false;
+                for (let corner of corners) {
+                    if (maze[corner.y][corner.x] === 0) {
+                        // Place exit at this corner
+                        maze[corner.y][corner.x] = 6; // New type for chapter exit
+
+                        gameEvents.push({
+                            x: corner.x,
+                            y: corner.y,
+                            type: 6, // Chapter exit portal
+                            isCleared: false,
+                            chapterIndex: currentRoomIndex,
+                        });
+                        exitPlaced = true;
+                        break;
+                    }
+                }
+
+                // If no corner is available, force place at bottom-right corner
+                if (!exitPlaced) {
+                    const corner = { x: N - 2, y: N - 2 };
+                    maze[corner.y][corner.x] = 6;
+                    gameEvents.push({
+                        x: corner.x,
+                        y: corner.y,
+                        type: 6,
+                        isCleared: false,
+                        chapterIndex: currentRoomIndex,
+                    });
+                }
+            }
+
+            function nextChapter() {
+                if (currentRoomIndex >= totalRooms) {
+                    // Game complete — show traditional overlay
+                    showOverlayMode("traditional");
+                    document.getElementById("overlay-title").textContent =
+                        "🎉 CHIẾN THẮNG! 🎉";
+                    document.getElementById("overlay-message").innerHTML =
+                        `Chúc mừng! Bạn đã hoàn thành tất cả ${totalRooms} chương Kinh tế chính trị Mác-Lênin!<br><br>` +
+                        `Điểm số cuối cùng: <strong>${player.score}</strong><br>` +
+                        `Hướng đã chọn: <strong>${getDirectionName(
+                            chosenDirection
+                        )}</strong><br><br>` +
+                        `Bạn đã nắm vững kiến thức từ Tổng quan đến Hội nhập kinh tế quốc tế. Cảm ơn bạn đã học tập!`;
+                    document.querySelector(
+                        "#traditional-overlay button"
+                    ).textContent = "Chơi lại";
+                    document.querySelector(
+                        "#traditional-overlay button"
+                    ).onclick = () => restartGame();
+                } else {
+                    currentRoomIndex++;
+
+                    // Generate new maze for the next chapter
+                    const mazeSize = 15;
+                    maze = generateMaze(mazeSize, mazeSize);
+                    mazeWidth = mazeSize;
+                    mazeHeight = mazeSize;
+
+                    // Reset chapter progress
+                    chapterQuestionsCorrect = 0;
+
+                    // Place events in the new maze
+                    placeRoomEvents();
+                    updateHUD();
+
+                    // Reset player position to start of new maze
+                    player.x = 1;
+                    player.y = 1;
+
+                    draw();
+
+                    const chapterTitles = {
+                        1: "Chương I: Tổng quan về Kinh tế Chính trị Mác-Lênin",
+                        2: "Chương II: Hàng hóa, thị trường và vai trò của các chủ thể tham gia thị trường",
+                        3: "Chương III: Giá trị thặng dư trong nền kinh tế thị trường",
+                        4: "Chương IV: Cạnh tranh và độc quyền trong nền kinh tế thị trường",
+                        5: "Chương V: Kinh tế thị trường định hướng xã hội chủ nghĩa và các quan hệ lợi ích kinh tế ở Việt Nam",
+                        6: "Chương VI: Công nghiệp hóa, hiện đại hóa và hội nhập kinh tế quốc tế của Việt Nam",
+                    };
+
+                    openModalMsg(
+                        `${chapterTitles[currentRoomIndex]}`,
+                        `Chào mừng đến với Chương ${currentRoomIndex}! Hãy khám phá mê cung và tìm 10 ô câu hỏi. Mỗi ô chứa 1 câu hỏi. Bạn cần trả lời đúng tối thiểu 5/10 câu để mở cổng chương tiếp theo!`
+                    );
+                }
+            }
+
+            function getDirectionName(dir) {
+                const names = {
+                    east: "Đông",
+                    west: "Tây",
+                    north: "Bắc",
+                    south: "Nam",
+                };
+                return names[dir] || dir;
+            }
+
+            function updateSidebarForGameplay() {
+                // Hide direction selection buttons
+                document.getElementById("direction-buttons").style.display =
+                    "none";
+                document.getElementById("direction-locked").style.display =
+                    "block";
+                document.getElementById("panel-title").textContent =
+                    "Trạng thái game";
+                document.getElementById("locked-direction").textContent =
+                    getDirectionName(chosenDirection);
+
+                // Update space hint for gameplay
+                document.getElementById("space-hint").textContent =
+                    "Space: bật/tắt vượt tường. Tìm lối thoát (🏰) để sang phòng tiếp theo.";
+            }
+
+            // --- 3. Logic Giao diện (Draw, HUD, Modals) ---
+
+            // Cập nhật trạng thái người chơi lên HUD
+            function updateHUD() {
+                document.getElementById("lives").textContent = player.lives;
+                document.getElementById("score").textContent = player.score;
+                document.getElementById("shield-count").textContent =
+                    player.shield;
+                document.getElementById(
+                    "room"
+                ).textContent = `Chương ${currentRoomIndex} / ${totalRooms} (${chapterQuestionsCorrect}/10)`;
+            }
+
+            // Hiển thị modal thông báo chung
+            function openModalMsg(
+                title,
+                message,
+                options = [{ text: "Đóng", action: "closeModal" }]
+            ) {
+                const modal = document.getElementById("modal-event");
+                document.getElementById("modal-title").textContent = title;
+                document.getElementById("modal-message").innerHTML = message;
+
+                const optionsBox = document.getElementById("modal-options");
+                optionsBox.innerHTML = "";
+                options.forEach((opt) => {
+                    const button = document.createElement("button");
+                    button.textContent = opt.text;
+                    // If action is a string, call the named function on window (e.g. "closeModal").
+                    // Using new Function(opt.action) would only evaluate the expression but not call it.
+                    if (typeof opt.action === "string") {
+                        button.onclick = () => {
+                            if (typeof window[opt.action] === "function") {
+                                window[opt.action]();
+                            }
+                        };
+                    } else {
+                        button.onclick = opt.action;
+                    }
+                    optionsBox.appendChild(button);
+                });
+                modal.showModal();
+            }
+
+            // Đóng modal thông báo chung
+            function closeModal() {
+                document.getElementById("modal-event").close();
+            }
+
+            // Hiển thị/ẩn overlay (Màn hình khởi động/kết thúc)
+            function showOverlay(
+                title,
+                message,
+                buttonText = "Bắt Đầu Lại",
+                action = "restartGame"
+            ) {
+                document.getElementById("overlay-title").textContent = title;
+                document.getElementById("overlay-message").innerHTML = message;
+                const button = document.querySelector("#game-overlay button");
+                button.textContent = buttonText;
+                // If action is a string, call the named function on window (e.g. "restartGame").
+                if (typeof action === "string") {
+                    button.onclick = () => {
+                        if (typeof window[action] === "function") {
+                            window[action]();
+                        }
+                    };
+                } else {
+                    button.onclick = action;
+                }
+                document.getElementById("game-overlay").style.display = "flex";
+                isGameRunning = false;
+            }
+
+            // Vẽ mê cung và người chơi
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // If player is inside a mini-room, draw that room instead
+                if (inRoom && currentRoom) {
+                    const rMaze = currentRoom.maze;
+                    const rN = rMaze.length;
+                    const rCell = Math.min(
+                        CELL_SIZE,
+                        Math.floor(canvas.width / rN)
+                    );
+                    // center room on canvas
+                    const offsetX = (canvas.width - rN * rCell) / 2;
+                    const offsetY = (canvas.height - rN * rCell) / 2;
+
+                    for (let y = 0; y < rN; y++) {
+                        for (let x = 0; x < rN; x++) {
+                            const val = rMaze[y][x];
+                            const cx = offsetX + x * rCell;
+                            const cy = offsetY + y * rCell;
+                            if (val === 1) {
+                                ctx.fillStyle = "#1e2a4b";
+                                ctx.fillRect(cx, cy, rCell, rCell);
+                            } else {
+                                ctx.fillStyle = "#0b0c12";
+                                ctx.fillRect(cx, cy, rCell, rCell);
+                            }
+                            if (
+                                x === currentRoom.exitX &&
+                                y === currentRoom.exitY
+                            ) {
+                                ctx.fillStyle = "#ef4444";
+                                ctx.fillRect(
+                                    cx + rCell * 0.2,
+                                    cy + rCell * 0.2,
+                                    rCell * 0.6,
+                                    rCell * 0.6
+                                );
+                            }
+                        }
+                    }
+
+                    // draw room player
+                    ctx.beginPath();
+                    ctx.arc(
+                        offsetX + roomPlayer.x * rCell + rCell / 2,
+                        offsetY + roomPlayer.y * rCell + rCell / 2,
+                        rCell / 3,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fillStyle = "#fef08a";
+                    ctx.fill();
+                    return;
+                }
+
+                // Draw main maze
+                for (let y = 0; y < N; y++) {
+                    for (let x = 0; x < N; x++) {
+                        const cellValue = maze[y][x];
+                        const cellX = x * CELL_SIZE;
+                        const cellY = y * CELL_SIZE;
+
+                        // Vẽ tường
+                        if (cellValue === 1) {
+                            ctx.fillStyle = "#1e2a4b";
+                            ctx.fillRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
+                        } else {
+                            // Vẽ đường đi
+                            ctx.fillStyle = "#0b0c12";
+                            ctx.fillRect(cellX, cellY, CELL_SIZE, CELL_SIZE);
+                        }
+
+                        // Vẽ sự kiện (sử dụng Icon)
+                        if (cellValue >= 2 && cellValue <= 6) {
+                            const eventInfo = iconData[cellValue];
+                            if (eventInfo) {
+                                // Vẽ nền màu cho ô sự kiện
+                                ctx.fillStyle = eventInfo.color + "22"; // Thêm độ trong suốt
+                                ctx.fillRect(
+                                    cellX,
+                                    cellY,
+                                    CELL_SIZE,
+                                    CELL_SIZE
+                                );
+
+                                // Chèn SVG Icon (phức tạp hơn trên canvas)
+                                // Cách đơn giản là vẽ một hình tròn màu đại diện
+                                ctx.beginPath();
+                                ctx.arc(
+                                    cellX + CELL_SIZE / 2,
+                                    cellY + CELL_SIZE / 2,
+                                    CELL_SIZE / 3,
+                                    0,
+                                    Math.PI * 2
+                                );
+                                ctx.fillStyle = eventInfo.color;
+                                ctx.fill();
+
+                                // Nếu đã tải ảnh SVG thành công, vẽ ảnh (yêu cầu loadIcons() trước)
+                                const img = iconImages[cellValue];
+                                if (img && img.complete) {
+                                    const size = CELL_SIZE * 0.7;
+                                    ctx.drawImage(
+                                        img,
+                                        cellX + (CELL_SIZE - size) / 2,
+                                        cellY + (CELL_SIZE - size) / 2,
+                                        size,
+                                        size
+                                    );
+                                } else {
+                                    // Fallback: sử dụng text đơn giản nếu SVG không tải được
+                                    const text = {
+                                        2: "?",
+                                        3: "R",
+                                        4: "S",
+                                        5: "E",
+                                        6: "⭐",
+                                    }[cellValue];
+                                    ctx.fillStyle = "#fff";
+                                    ctx.font = "bold 20px Arial";
+                                    ctx.textAlign = "center";
+                                    ctx.textBaseline = "middle";
+                                    ctx.fillText(
+                                        text,
+                                        cellX + CELL_SIZE / 2,
+                                        cellY + CELL_SIZE / 2
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Vẽ người chơi
+                ctx.beginPath();
+                ctx.arc(
+                    player.x * CELL_SIZE + CELL_SIZE / 2,
+                    player.y * CELL_SIZE + CELL_SIZE / 2,
+                    CELL_SIZE / 3,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fillStyle = "#fef08a"; // Màu vàng cho nhân vật
+                ctx.fill();
+
+                // Vẽ khiên nếu có
+                if (player.shield > 0) {
+                    ctx.strokeStyle = "#60a5fa";
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+            }
+
+            // Xử lý khi mất mạng
+            function loseLife(reason) {
+                player.lives--;
+                updateHUD();
+                if (player.lives <= 0) {
+                    showOverlay(
+                        "Game Over",
+                        `Bạn đã hết mạng! Lý do cuối cùng: ${reason}`,
+                        "Thử lại",
+                        "restartGame"
+                    );
+                } else {
+                    openModalMsg(
+                        "Bị Trừ Mạng!",
+                        `Mất một mạng. ${reason}. Mạng còn lại: ${player.lives}`
+                    );
+                }
+            }
+
+            function restartGame() {
+                document.getElementById("game-overlay").style.display = "none";
+                initGame();
+            }
+
+            // Start game (check chosen direction first)
+            function startGame() {
+                if (!chosenDirection) {
+                    openModalMsg(
+                        "Chưa chọn hướng",
+                        "Vui lòng chọn 1 hướng ở thanh bên phải trước khi bắt đầu."
+                    );
+                    return;
+                }
+                document.getElementById("game-overlay").style.display = "none";
+                initGame();
+            }
+
+            // Enter a mini-room (a small maze with an exit)
+            function enterRoom(event) {
+                if (inRoom) return;
+                inRoom = true;
+                const roomSize = event.type === 5 ? 13 : 9; // boss rooms are larger
+                const rMaze = generateMaze(roomSize, roomSize);
+                // find an exit cell randomly on a path
+                let exitX = 1,
+                    exitY = 1;
+                for (let i = 0; i < 200; i++) {
+                    const rx = Math.floor(Math.random() * (roomSize - 2)) + 1;
+                    const ry = Math.floor(Math.random() * (roomSize - 2)) + 1;
+                    if (rMaze[ry][rx] === 0 && (rx !== 1 || ry !== 1)) {
+                        exitX = rx;
+                        exitY = ry;
+                        break;
+                    }
+                }
+                currentRoom = {
+                    maze: rMaze,
+                    exitX,
+                    exitY,
+                    type: event.type,
+                    eventRef: event,
+                };
+                roomPlayer = { x: 1, y: 1 };
+                openModalMsg(
+                    "Vào phòng",
+                    "Bạn đã vào 1 mê cung nhỏ — tìm lối ra (ô đỏ) để hoàn thành phòng.",
+                    [
+                        {
+                            text: "Bắt đầu",
+                            action: () => {
+                                closeModal();
+                                draw();
+                            },
+                        },
+                    ]
+                );
+                draw();
+            }
+
+            // --- 4. Logic Tương tác (Di chuyển, Vượt tường, Dẫm lên ô) ---
+
+            // Xử lý khi người chơi bước vào một ô
+            function stepOn(x, y) {
+                const cellValue = maze[y][x];
+                if (cellValue === 0) return; // Đường đi trống
+
+                // Tìm thông tin sự kiện
+                const event = gameEvents.find((e) => e.x === x && e.y === y);
+
+                if (event && !event.isCleared) {
+                    switch (cellValue) {
+                        case 2: // Phòng hỏi
+                            handleQuestionRoom(event);
+                            break;
+                        case 3: // Phòng thưởng
+                            handleRewardRoom(event);
+                            break;
+                        case 4: // Lấy khiên
+                            handleShieldPickup(event);
+                            break;
+                        case 5: // Lối thoát cuối game
+                            event.isCleared = true;
+                            maze[event.y][event.x] = 0;
+                            // Final victory
+                            showOverlayMode("traditional");
+                            document.getElementById(
+                                "overlay-title"
+                            ).textContent = "🎉 CHIẾN THẮNG! 🎉";
+                            document.getElementById(
+                                "overlay-message"
+                            ).innerHTML =
+                                `Chúc mừng! Bạn đã hoàn thành tất cả ${totalRooms} chương Kinh tế chính trị Mác-Lênin!<br><br>` +
+                                `Điểm số cuối cùng: <strong>${player.score}</strong><br>` +
+                                `Hướng đã chọn: <strong>${getDirectionName(
+                                    chosenDirection
+                                )}</strong><br><br>` +
+                                `Bạn đã nắm vững kiến thức từ Tổng quan đến Hội nhập kinh tế quốc tế. Cảm ơn bạn đã học tập!`;
+                            document.querySelector(
+                                "#traditional-overlay button"
+                            ).textContent = "Chơi lại";
+                            document.querySelector(
+                                "#traditional-overlay button"
+                            ).onclick = () => restartGame();
+                            break;
+                        case 6: // Cổng chuyển chương
+                            if (chapterQuestionsCorrect >= 5) {
+                                event.isCleared = true;
+                                maze[event.y][event.x] = 0;
+                                openModalMsg(
+                                    "Hoàn thành chương!",
+                                    `🎉 Xuất sắc! Bạn đã trả lời đúng ${chapterQuestionsCorrect}/10 câu hỏi trong Chương ${currentRoomIndex}/${totalRooms}. Chuẩn bị chuyển sang mê cung chương tiếp theo!`,
+                                    [
+                                        {
+                                            text: "Sang chương tiếp theo",
+                                            action: () => {
+                                                closeModal();
+                                                nextChapter();
+                                            },
+                                        },
+                                    ]
+                                );
+                            } else {
+                                openModalMsg(
+                                    "Chưa đủ điều kiện!",
+                                    `Bạn cần trả lời đúng ít nhất 5/10 câu hỏi để mở cổng chương này. Hiện tại: ${chapterQuestionsCorrect}/10 câu đúng. Hãy tìm thêm các ô câu hỏi!`,
+                                    [
+                                        {
+                                            text: "Tiếp tục khám phá",
+                                            action: "closeModal",
+                                        },
+                                    ]
+                                );
+                            }
+                            break;
+                    }
+                } else if (event && event.isCleared) {
+                    // Đã clear sự kiện
+                    openModalMsg(
+                        "Đã hoàn thành",
+                        "Bạn đã hoàn thành thử thách ở đây rồi. Hãy tiếp tục khám phá mê cung!"
+                    );
+                }
+            }
+
+            // Cơ chế vượt tường (Wall Bypass) — hỗ trợ flag và hướng 'south' miễn phí
+            function tryWallBypass(nx, ny) {
+                // If bypassFlag is on, attempt bypass (cost depends on chosen direction)
+                if (bypassFlag) {
+                    // If South chosen, bypass is free
+                    if (chosenDirection === "south") {
+                        maze[ny][nx] = 0;
+                        player.x = nx;
+                        player.y = ny;
+                        bypassFlag = false; // auto-disable after use
+                        document.getElementById(
+                            "side-notes"
+                        ).textContent = `Bypass: OFF`;
+                        draw();
+                        stepOn(nx, ny);
+                        return;
+                    }
+
+                    // Otherwise require points
+                    if (player.score >= WALL_BYPASS_COST) {
+                        player.score -= WALL_BYPASS_COST;
+                        maze[ny][nx] = 0;
+                        player.x = nx;
+                        player.y = ny;
+                        bypassFlag = false;
+                        document.getElementById(
+                            "side-notes"
+                        ).textContent = `Bypass: OFF`;
+                        updateHUD();
+                        draw();
+                        stepOn(nx, ny);
+                        return;
+                    } else {
+                        openModalMsg(
+                            "Không đủ điểm!",
+                            `Bạn cần **${WALL_BYPASS_COST} điểm** để vượt tường khi chưa chọn Nam miễn phí.`
+                        );
+                        bypassFlag = false;
+                        document.getElementById(
+                            "side-notes"
+                        ).textContent = `Bypass: OFF`;
+                        return;
+                    }
+                }
+
+                // If bypassFlag not on, fallback to normal modal asking to spend points
+                if (player.score >= WALL_BYPASS_COST) {
+                    openModalMsg(
+                        "Xuyên Tường Thành Công!",
+                        `Bạn có thể sử dụng **${WALL_BYPASS_COST} điểm** để xuyên qua bức tường.`,
+                        [
+                            {
+                                text: "OK",
+                                action: () => {
+                                    // Cập nhật state và di chuyển
+                                    player.score -= WALL_BYPASS_COST;
+                                    maze[ny][nx] = 0; // Biến tường thành đường đi
+                                    player.x = nx;
+                                    player.y = ny;
+                                    updateHUD();
+                                    draw();
+                                    closeModal();
+                                    // Kiểm tra sự kiện ngay sau khi bước vào
+                                    stepOn(nx, ny);
+                                },
+                            },
+                        ]
+                    );
+                } else {
+                    openModalMsg(
+                        "Không đủ điểm!",
+                        `Bạn cần **${WALL_BYPASS_COST} điểm** để có thể xuyên tường. Nhấn Space để bật chế độ vượt tường nếu muốn cố gắng vượt (nếu đã chọn Nam, vượt sẽ miễn phí khi bật).`
+                    );
+                }
+            }
+
+            /* Movement Handler */
+            const dirs = {
+                w: [0, -1],
+                a: [-1, 0],
+                s: [0, 1],
+                d: [1, 0],
+                ArrowUp: [0, -1],
+                ArrowLeft: [-1, 0],
+                ArrowDown: [0, 1],
+                ArrowRight: [1, 0],
+            };
+            window.addEventListener("keydown", (e) => {
+                // Handle direction selection mode
+                if (introMode === "direction" && !isGameRunning) {
+                    const d = dirs[e.key];
+                    if (d) {
+                        e.preventDefault();
+                        const nx = Math.max(
+                            0,
+                            Math.min(2, selectorPlayer.x + d[0])
+                        );
+                        const ny = Math.max(
+                            0,
+                            Math.min(2, selectorPlayer.y + d[1])
+                        );
+                        selectorPlayer.x = nx;
+                        selectorPlayer.y = ny;
+                        updateDirectionSelector();
+                        return;
+                    }
+                    if (e.code === "Space" && chosenDirection) {
+                        e.preventDefault();
+                        // Confirm direction selection and start game
+                        document.getElementById("game-overlay").style.display =
+                            "none";
+                        introMode = "done";
+                        initGame();
+                        return;
+                    }
+                    return;
+                }
+
+                // Toggle bypass flag with Space anytime during running
+                if (e.code === "Space" && isGameRunning) {
+                    bypassFlag = !bypassFlag;
+                    document.getElementById("side-notes").textContent =
+                        bypassFlag ? `Bypass: ON` : `Bypass: OFF`;
+                    e.preventDefault();
+                    return;
+                }
+
+                const d = dirs[e.key];
+                if (!d || !isGameRunning) return;
+                e.preventDefault();
+
+                // If inside a mini-room, move the roomPlayer instead
+                if (inRoom && currentRoom) {
+                    const nx = roomPlayer.x + d[0] * SPEED;
+                    const ny = roomPlayer.y + d[1] * SPEED;
+                    const rMaze = currentRoom.maze;
+                    if (
+                        nx < 0 ||
+                        nx >= rMaze.length ||
+                        ny < 0 ||
+                        ny >= rMaze.length
+                    )
+                        return;
+                    if (rMaze[ny][nx] === 0) {
+                        roomPlayer.x = nx;
+                        roomPlayer.y = ny;
+                        draw();
+                        // Check exit
+                        if (
+                            nx === currentRoom.exitX &&
+                            ny === currentRoom.exitY
+                        ) {
+                            // resolve room
+                            const ev = currentRoom.eventRef;
+                            // close room and apply effects based on room type
+                            inRoom = false;
+                            // After exiting the room, return player to original event cell
+                            draw();
+                            // Resolve the event now (use original handlers)
+                            if (currentRoom.type === 2) {
+                                handleQuestionRoom(ev);
+                            } else if (currentRoom.type === 3) {
+                                handleRewardRoom(ev);
+                            } else if (currentRoom.type === 4) {
+                                handleShieldPickup(ev);
+                            } else if (currentRoom.type === 5) {
+                                // Boss/Exit room - reward/finish
+                                showOverlay(
+                                    "Chiến Thắng!",
+                                    `Bạn đã vượt phòng boss với ${player.score} điểm!`,
+                                    "Chơi lại",
+                                    "restartGame"
+                                );
+                            }
+                            currentRoom = null;
+                            roomPlayer = null;
+                        }
+                    }
+                    return;
+                }
+
+                const nx = player.x + d[0] * SPEED;
+                const ny = player.y + d[1] * SPEED;
+
+                // Kiểm tra giới hạn bản đồ
+                if (nx < 0 || nx >= N || ny < 0 || ny >= N) return;
+
+                // If the cell is a path (0) or an event (2-6) allow moving into it.
+                if (
+                    maze[ny][nx] === 0 ||
+                    (maze[ny][nx] >= 2 && maze[ny][nx] <= 6)
+                ) {
+                    player.x = nx;
+                    player.y = ny;
+                    draw();
+                    // Handle events directly in the maze (no mini-rooms)
+                    if (maze[ny][nx] >= 2 && maze[ny][nx] <= 6) {
+                        stepOn(nx, ny);
+                    }
+                } else if (maze[ny][nx] === 1) {
+                    // Gặp tường
+                    tryWallBypass(nx, ny);
+                }
+            });
+
+            // --- 5. Logic Câu hỏi ---
+            let currentQuestionEvent = null;
+
+            // Xử lý khi phòng câu hỏi được hoàn thành
+            function handleRoomClear(event) {
+                event.isCleared = true;
+                maze[event.y][event.x] = 0; // Biến thành đường đi
+                document.getElementById("modal-question").close();
+                openModalMsg(
+                    "Phòng Đã Rõ!",
+                    `Chúc mừng! Bạn đã trả lời đúng **${
+                        event.questionsCorrect
+                    }** / **${
+                        event.questionsCount
+                    }** câu hỏi và qua phòng. Bạn nhận được **+${
+                        event.questionsCorrect * 2
+                    } điểm**!`,
+                    [{ text: "Tiếp tục", action: "closeModal" }]
+                );
+                player.score += event.questionsCorrect * 2;
+                updateHUD();
+                draw();
+            }
+
+            // Hiển thị modal câu hỏi
+            function handleQuestionRoom(event) {
+                if (event.isCleared) return;
+
+                currentQuestionEvent = event;
+
+                // Get chapter-specific questions
+                const chapterQuestions =
+                    questionsByChapter[event.chapterIndex] ||
+                    questionsByChapter[1];
+
+                // Initialize question tracking
+                if (!event.currentRetryCount) event.currentRetryCount = 0;
+                if (!event.shuffledOptions) event.shuffledOptions = {};
+
+                // For single-question events, use the pre-assigned question
+                let q, qOriginalIndex;
+                if (event.currentQuestion) {
+                    // Continue with the same question for retry
+                    q = event.currentQuestion;
+                    qOriginalIndex = event.currentQuestionIndex;
+                } else {
+                    // Use the pre-assigned question for this event
+                    qOriginalIndex = event.assignedQuestionIndex;
+                    q = chapterQuestions[qOriginalIndex];
+
+                    // Store current question and reset retry count for new question
+                    event.currentQuestion = q;
+                    event.currentQuestionIndex = qOriginalIndex;
+                    event.currentRetryCount = 0;
+                }
+
+                // Update modal title with chapter info
+                const chapterTitles = {
+                    1: "Chương I: Tổng quan về Kinh tế Chính trị Mác-Lênin",
+                    2: "Chương II: Hàng hóa, thị trường và vai trò của các chủ thể tham gia thị trường",
+                    3: "Chương III: Giá trị thặng dư trong nền kinh tế thị trường",
+                    4: "Chương IV: Cạnh tranh và độc quyền trong nền kinh tế thị trường",
+                    5: "Chương V: Kinh tế thị trường định hướng xã hội chủ nghĩa và các quan hệ lợi ích kinh tế ở Việt Nam",
+                    6: "Chương VI: Công nghiệp hóa, hiện đại hóa và hội nhập kinh tế quốc tế của Việt Nam",
+                };
+
+                document.getElementById("question-title").textContent = `❓ ${
+                    chapterTitles[event.chapterIndex] ||
+                    "Câu Hỏi Kinh Tế Chính Trị"
+                }`;
+
+                document.getElementById("q-correct-count").textContent =
+                    chapterQuestionsCorrect;
+                document.getElementById("q-required-count").textContent = 5;
+                document.getElementById(
+                    "retry-count"
+                ).textContent = `Lần thử: ${event.currentRetryCount}`;
+                document.getElementById("question-text").textContent = q.q;
+
+                const optsBox = document.getElementById("question-options");
+                optsBox.innerHTML = "";
+
+                // Use shuffled options if available (for retries), otherwise create new shuffle
+                let optionsShuffled;
+                if (event.shuffledOptions[qOriginalIndex]) {
+                    // Use existing shuffle for retry (don't shuffle again)
+                    optionsShuffled = event.shuffledOptions[qOriginalIndex];
+                } else {
+                    // First time seeing this question, shuffle and store
+                    optionsShuffled = q.options
+                        .map((text, index) => ({ text, index }))
+                        .sort(() => Math.random() - 0.5);
+                    event.shuffledOptions[qOriginalIndex] = optionsShuffled;
+                }
+
+                optionsShuffled.forEach((opt) => {
+                    const b = document.createElement("button");
+                    b.textContent = opt.text;
+                    b.onclick = () => {
+                        const correct = opt.index === q.answer;
+
+                        if (correct) {
+                            // Correct answer - mark this event as completed
+                            event.isCleared = true;
+                            maze[event.y][event.x] = 0; // Remove from maze
+                            chapterQuestionsCorrect++; // Increment chapter progress
+
+                            // Calculate points based on direction and retry count
+                            const basePoints =
+                                chosenDirection === "east" ? 15 : 5;
+                            const actualPoints = Math.max(
+                                1,
+                                basePoints - (event.currentRetryCount - 1)
+                            );
+                            player.score += actualPoints;
+                            updateHUD();
+
+                            const retryMessage =
+                                event.currentRetryCount > 1
+                                    ? ` (Giảm ${
+                                          event.currentRetryCount - 1
+                                      } điểm do thử ${
+                                          event.currentRetryCount
+                                      } lần)`
+                                    : "";
+
+                            // Close question modal and show success message
+                            document.getElementById("modal-question").close();
+
+                            // Check if chapter can be completed
+                            let statusMessage = `Tiến trình chương: ${chapterQuestionsCorrect}/10 câu đúng`;
+                            if (chapterQuestionsCorrect >= 5) {
+                                statusMessage += `<br>🎉 <strong>Đã đủ 5 câu để mở cổng chương!</strong>`;
+                                // Make chapter exit available if it exists
+                                const chapterExit = gameEvents.find(
+                                    (e) => e.type === 6
+                                );
+                                if (chapterExit) {
+                                    chapterExit.isAvailable = true;
+                                }
+                            }
+
+                            openModalMsg(
+                                "Chính Xác!",
+                                `Tuyệt vời, +${actualPoints} điểm!${retryMessage}<br><br>${statusMessage}`,
+                                [
+                                    {
+                                        text: "Tiếp tục",
+                                        action: () => {
+                                            closeModal();
+                                            draw(); // Redraw to show removed question mark
+                                        },
+                                    },
+                                ]
+                            );
+                        } else {
+                            // Wrong answer - subtract 1 point from reward instead of losing life
+                            const basePoints =
+                                chosenDirection === "east" ? 15 : 5;
+                            const pointsLost = 1;
+                            player.score = Math.max(
+                                0,
+                                player.score - pointsLost
+                            );
+                            updateHUD();
+
+                            event.currentRetryCount++;
+
+                            // Close question modal and show penalty message
+                            document.getElementById("modal-question").close();
+                            openModalMsg(
+                                "Không Chính Xác!",
+                                `Câu trả lời sai! Bạn bị trừ ${pointsLost} điểm. (Lần thử ${event.currentRetryCount})`,
+                                [
+                                    {
+                                        text: "Thử lại",
+                                        action: () => {
+                                            closeModal();
+                                            handleQuestionRoom(event);
+                                        },
+                                    },
+                                ]
+                            );
+                        }
+                    };
+                    optsBox.appendChild(b);
+                });
+
+                document.getElementById("modal-question").showModal();
+            }
+
+            // --- 6. Logic Phòng thưởng (Mới) ---
+
+            function handleShieldPickup(event) {
+                event.isCleared = true;
+                maze[event.y][event.x] = 0;
+                player.shield++;
+                updateHUD();
+                openModalMsg(
+                    "Nhận Khiên!",
+                    "Bạn nhận được **1 Khiên 🛡️**. Khiên sẽ bảo vệ bạn khỏi bị mất mạng 1 lần khi trả lời sai câu hỏi!",
+                    [{ text: "Tiếp tục", action: "closeModal" }]
+                );
+                draw();
+            }
+
+            function handleRewardRoom(event) {
+                if (event.openedTimes === 0) {
+                    // Lần 1: Chắc chắn có thưởng
+                    event.openedTimes++;
+
+                    // Reward sizes can be larger if chosenDirection is north
+                    const rewardPool = [
+                        {
+                            text: "+1 Mạng ❤️",
+                            action: () => {
+                                player.lives++;
+                                updateHUD();
+                            },
+                            points: 0,
+                        },
+                        {
+                            text: "+1 Khiên 🛡️",
+                            action: () => {
+                                player.shield++;
+                                updateHUD();
+                            },
+                            points: 0,
+                        },
+                        {
+                            text: "+20 Điểm ⭐",
+                            action: () => {
+                                player.score += 20;
+                                updateHUD();
+                            },
+                            points: 20,
+                        },
+                    ];
+
+                    // If North chosen, boost chance for points and increase amount
+                    if (chosenDirection === "north") {
+                        rewardPool.push({
+                            text: "+50 Điểm ⭐ (Bắc bonus)",
+                            action: () => {
+                                player.score += 50;
+                                updateHUD();
+                            },
+                            points: 50,
+                        });
+                        // duplicate some rewards to increase chance
+                        rewardPool.push(rewardPool[2]);
+                    }
+
+                    const reward =
+                        rewardPool[
+                            Math.floor(Math.random() * rewardPool.length)
+                        ];
+
+                    openModalMsg(
+                        "Phần Thưởng Lần 1!",
+                        `Chúc mừng! Bạn mở rương lần đầu và chắc chắn nhận được: **${reward.text}**.`,
+                        [
+                            {
+                                text: "Tiếp tục",
+                                action: () => {
+                                    reward.action();
+                                    closeModal();
+                                    // Sau khi nhận thưởng, có thể chọn mở rương tiếp
+                                    handleRewardRoom(event);
+                                },
+                            },
+                        ]
+                    );
+
+                    event.isCleared = true; // Đánh dấu là đã mở lần 1 (dù chưa kết thúc)
+                    maze[event.y][event.x] = 0; // Biến thành đường đi để có thể quay lại
+                    draw();
+                } else {
+                    // Lần 2 trở đi: Mini-game Chẵn/Lẻ
+                    openDiceRollModal(event);
+                }
+            }
+
+            // Mở mini-game xúc xắc
+            function openDiceRollModal(event) {
+                openModalMsg(
+                    "Mini-game Xúc Xắc Chẵn/Lẻ",
+                    `Bạn muốn cược giá trị xúc xắc là **Lớn (4, 5, 6)** hay **Nhỏ (1, 2, 3)**? Cược **5 điểm** để tham gia! Điểm hiện tại: ${player.score}`,
+                    [
+                        {
+                            text: "Cược Lớn (4-6)",
+                            action: () => checkDiceBet(event, "large"),
+                        },
+                        {
+                            text: "Cược Nhỏ (1-3)",
+                            action: () => checkDiceBet(event, "small"),
+                        },
+                        { text: "Rời đi", action: "closeModal" },
+                    ]
+                );
+            }
+
+            // Kiểm tra kết quả xúc xắc
+            function checkDiceBet(event, bet) {
+                if (player.score < 5) {
+                    openModalMsg(
+                        "Không đủ điểm!",
+                        "Bạn cần ít nhất **5 điểm** để tham gia cược.",
+                        [{ text: "Đóng", action: "closeModal" }]
+                    );
+                    return;
+                }
+
+                player.score -= 5; // Trừ điểm cược
+                updateHUD();
+
+                const diceRoll = Math.floor(Math.random() * 6) + 1;
+                event.openedTimes++;
+
+                let result = "";
+                let win = false;
+
+                if (
+                    (bet === "large" && diceRoll >= 4) ||
+                    (bet === "small" && diceRoll <= 3)
+                ) {
+                    win = true;
+                    player.score += 15; // Thưởng (5 điểm cược + 10 điểm thắng)
+                    result = `Thắng! Xúc xắc ra ${diceRoll}. Bạn nhận được **+10 điểm** (Tổng +15 điểm) và đang có **${player.score}** điểm.`;
+                } else {
+                    player.score -= 5; // Trừ thêm 5 điểm thua cược
+                    result = `Thua. Xúc xắc ra ${diceRoll}. Bạn mất thêm **5 điểm** (Tổng -10 điểm) và đang có **${player.score}** điểm.`;
+                }
+                updateHUD();
+
+                openModalMsg(
+                    win ? "🎉 Thắng Cược!" : "😥 Thua Cược",
+                    `Kết quả: **${diceRoll}**<div class="dice-display">${
+                        win ? "💰" : "💔"
+                    }</div>${result}`,
+                    [
+                        {
+                            text: "Cược tiếp (5 điểm)",
+                            action: () => {
+                                closeModal();
+                                openDiceRollModal(event);
+                            },
+                        },
+                        { text: "Dừng lại", action: "closeModal" },
+                    ]
+                );
+            }
+
+            // Comic panels (Ver4 inspired)
+            const introPanels = [
+                {
+                    art: "📕",
+                    text: 'Thầy dặn: "Sản phẩm không rõ \nMục đích - Mục tiêu - Ý nghĩa là GAME OVER."',
+                },
+                {
+                    art: "🕵️",
+                    text: '"Có gián điệp theo dõi game của các em." \nHãy chứng minh giá trị học thuật!',
+                },
+                {
+                    art: "🏭❤️",
+                    text: "Sứ mệnh: tạo GIÁ TRỊ THẶNG DƯ \nnhưng vẫn giữ CÔNG BẰNG XÃ HỘI.",
+                },
+                {
+                    art: "🧭",
+                    text: "Chọn hướng khởi đầu: Đông, Tây, Bắc, Nam. \nMỗi hướng có ưu thế riêng trong hành trình!",
+                },
+            ];
+
+            function showOverlayMode(kind = "comic") {
+                introMode = kind;
+                panelIndex = 0;
+                document.getElementById("game-overlay").style.display = "flex";
+
+                if (kind === "comic") {
+                    document.getElementById("comic-intro").style.display =
+                        "block";
+                    document.getElementById(
+                        "direction-selection"
+                    ).style.display = "none";
+                    document.getElementById(
+                        "traditional-overlay"
+                    ).style.display = "none";
+                    typePanel();
+                } else if (kind === "direction") {
+                    document.getElementById("comic-intro").style.display =
+                        "none";
+                    document.getElementById(
+                        "direction-selection"
+                    ).style.display = "block";
+                    document.getElementById(
+                        "traditional-overlay"
+                    ).style.display = "none";
+                    selectorPlayer = { x: 1, y: 1 };
+                    updateDirectionSelector();
+                } else {
+                    // traditional
+                    document.getElementById("comic-intro").style.display =
+                        "none";
+                    document.getElementById(
+                        "direction-selection"
+                    ).style.display = "none";
+                    document.getElementById(
+                        "traditional-overlay"
+                    ).style.display = "block";
+                }
+            }
+
+            function typePanel() {
+                const p = introPanels[panelIndex];
+                document.getElementById("art").textContent = p.art;
+                document.getElementById("caption").textContent = "";
+                let i = 0;
+                clearInterval(typingId);
+                typingId = setInterval(() => {
+                    document.getElementById("caption").textContent =
+                        p.text.slice(0, ++i);
+                    if (i >= p.text.length) clearInterval(typingId);
+                }, 18);
+            }
+
+            function updateDirectionSelector() {
+                document
+                    .querySelectorAll(".dir-zone")
+                    .forEach((zone) => zone.classList.remove("active"));
+
+                // Map selector player position to direction zones
+                const dirMap = {
+                    "1,0": "north",
+                    "0,1": "west",
+                    "1,1": "center",
+                    "2,1": "east",
+                    "1,2": "south",
+                };
+
+                const key = `${selectorPlayer.x},${selectorPlayer.y}`;
+                const targetDir = dirMap[key];
+                if (targetDir && targetDir !== "center") {
+                    document
+                        .querySelector(`.dir-zone.${targetDir}`)
+                        .classList.add("active");
+                    chosenDirection = targetDir;
+                    updateSidebarNotes();
+                    updateSidebarButtons(); // Sync sidebar buttons
+                } else {
+                    chosenDirection = null;
+                    document.getElementById("side-notes").textContent =
+                        "Di chuyển để chọn hướng, Space để xác nhận.";
+                    updateSidebarButtons(); // Clear sidebar button selection
+                }
+            }
+
+            // Update sidebar buttons to match chosen direction
+            function updateSidebarButtons() {
+                document
+                    .querySelectorAll(".direction-btn")
+                    .forEach((btn) => btn.classList.remove("selected"));
+
+                if (chosenDirection) {
+                    const targetBtn = document.querySelector(
+                        `.direction-btn[data-dir="${chosenDirection}"]`
+                    );
+                    if (targetBtn) {
+                        targetBtn.classList.add("selected");
+                    }
+                }
+            }
+
+            // Update WASD selector to match chosen direction
+            function updateWASDSelector(direction) {
+                const directionToPosition = {
+                    north: { x: 1, y: 0 },
+                    west: { x: 0, y: 1 },
+                    east: { x: 2, y: 1 },
+                    south: { x: 1, y: 2 },
+                };
+
+                if (direction && directionToPosition[direction]) {
+                    selectorPlayer.x = directionToPosition[direction].x;
+                    selectorPlayer.y = directionToPosition[direction].y;
+
+                    // Update visual state
+                    document
+                        .querySelectorAll(".dir-zone")
+                        .forEach((zone) => zone.classList.remove("active"));
+                    const targetZone = document.querySelector(
+                        `.dir-zone.${direction}`
+                    );
+                    if (targetZone) {
+                        targetZone.classList.add("active");
+                    }
+                }
+            }
+
+            function updateSidebarNotes() {
+                const notes = {
+                    east: "Đông: Câu hỏi thưởng nhiều điểm (+15 cho mỗi câu đúng).",
+                    west: "Tây: Trả lời sai chỉ bị trừ 5 điểm (không mất mạng).",
+                    north: "Bắc: Nhiều rương hơn và phần thưởng lớn hơn.",
+                    south: "Nam: Vượt tường miễn phí khi bật chế độ vượt tường (Space).",
+                };
+                document.getElementById("side-notes").textContent =
+                    notes[chosenDirection] || "Chưa chọn hướng.";
+            }
+
+            /* Start with comic */
+            window.onload = function () {
+                loadIcons(); // Tải các icon SVG
+                canvas.width = N * CELL_SIZE;
+                canvas.height = N * CELL_SIZE;
+
+                // Wire up comic controls
+                document.getElementById("next-btn").onclick = () => {
+                    if (panelIndex < introPanels.length - 1) {
+                        panelIndex++;
+                        typePanel();
+                    } else {
+                        // Move to direction selection
+                        showOverlayMode("direction");
+                    }
+                };
+
+                document.getElementById("skip-btn").onclick = () => {
+                    showOverlayMode("direction");
+                };
+
+                // Wire up legacy direction buttons in side panel (keep as backup)
+                document.querySelectorAll(".direction-btn").forEach((btn) => {
+                    btn.addEventListener("click", () => {
+                        const selectedDirection = btn.getAttribute("data-dir");
+
+                        // Update chosen direction
+                        chosenDirection = selectedDirection;
+
+                        // Update sidebar buttons
+                        document
+                            .querySelectorAll(".direction-btn")
+                            .forEach((b) => b.classList.remove("selected"));
+                        btn.classList.add("selected");
+
+                        // Update sidebar notes
+                        updateSidebarNotes();
+
+                        // Sync with WASD selector if in direction selection mode
+                        if (introMode === "direction") {
+                            updateWASDSelector(selectedDirection);
+                        }
+                    });
+                });
+
+                // Initialize side-notes
+                document.getElementById("side-notes").textContent =
+                    "Đang xem intro...";
+
+                // Start with comic intro
+                showOverlayMode("comic");
+            };
+        </script>
+    </body>
+</html>
