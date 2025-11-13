@@ -574,7 +574,7 @@
                 DICE_SIDES: 6, // Số mặt xúc xắc
 
                 // Cấu hình Boss Fight
-                BOSS_HEALTH: 999, // Máu boss
+                BOSS_HEALTH: 150, // Máu boss
                 BOSS_MIN_DAMAGE: 15, // Sát thương tối thiểu của boss
                 BOSS_MAX_DAMAGE: 25, // Sát thương tối đa của boss
                 PLAYER_ATTACK_BASE: 20, // Sát thương cơ bản của player
@@ -613,7 +613,7 @@
                 2: { svg: ICON_QUESTION_SVG, color: "#5ff9d1" },
                 3: { svg: ICON_REWARD_SVG, color: "#fca311" },
                 4: { svg: ICON_SHIELD_SVG, color: "#60a5fa" },
-                5: { svg: ICON_EXIT_SVG, color: "#ef4444" },
+                5: { svg: ICON_EXIT_SVG, color: "#f59e0b" },
                 6: { svg: ICON_CHAPTER_EXIT_SVG, color: "#9333ea" },
                 7: { svg: ICON_BOSS_SVG, color: "#dc2626" },
             };
@@ -1410,6 +1410,12 @@
                 // Create exactly 10 question events per chapter
                 let baseEventTypes = [];
 
+                // Add special events for final chapter FIRST (TESTING: spawn in chapter 1)
+                if (currentRoomIndex === totalRooms) {
+                    baseEventTypes.push(7); // Boss Mr.Phúc in final chapter
+                    baseEventTypes.push(5); // Exit only in final chapter
+                }
+
                 // Add exactly 10 question events (each contains 1 question)
                 for (let i = 0; i < 10; i++) {
                     baseEventTypes.push(2); // question type
@@ -1432,12 +1438,6 @@
                     baseEventTypes.push(4);
                 }
 
-                // Add special events for final chapter
-                if (currentRoomIndex === 1) {
-                    baseEventTypes.push(7); // Boss Mr.Phúc in final chapter
-                    baseEventTypes.push(5); // Exit only in final chapter
-                }
-
                 // Adjust based on chosen direction (add extra items, not questions)
                 if (chosenDirection === "east") {
                     // East gets bonus points per question, no need for extra questions
@@ -1445,10 +1445,7 @@
                     // Add one more reward (but still limited)
                     if (rewardCount === 1) baseEventTypes.push(3);
                 } else if (chosenDirection === "west") {
-                    // Add more shields (for safety)
-                    for (let i = 0; i < GAME_CONFIG.EXTRA_SHIELDS_WEST; i++) {
-                        baseEventTypes.push(4);
-                    }
+                    // West direction: No extra items, only special penalty handling
                 } else if (chosenDirection === "south") {
                     // Balanced distribution - add extra shields
                     for (let i = 0; i < GAME_CONFIG.EXTRA_SHIELDS_SOUTH; i++) {
@@ -1458,6 +1455,14 @@
 
                 let placedCount = 0;
                 const maxEvents = Math.min(baseEventTypes.length, 12); // More events per maze
+                console.log(
+                    "DEBUG: baseEventTypes length:",
+                    baseEventTypes.length,
+                    "maxEvents:",
+                    maxEvents,
+                    "baseEventTypes:",
+                    baseEventTypes
+                );
 
                 while (placedCount < maxEvents) {
                     const rx = Math.floor(Math.random() * (N - 2)) + 1;
@@ -1469,6 +1474,15 @@
                     ) {
                         const type = baseEventTypes[placedCount];
                         maze[ry][rx] = type;
+                        console.log(
+                            "DEBUG: Placed event type",
+                            type,
+                            "at",
+                            rx,
+                            ry,
+                            "placedCount:",
+                            placedCount
+                        );
 
                         gameEvents.push({
                             x: rx,
@@ -1507,47 +1521,21 @@
                 }
             }
 
-            // Add a chapter exit portal to progress to next maze - always at corner
+            // Add a chapter exit portal to progress to next maze - always at bottom-right corner
             function addChapterExit() {
-                // Define corner positions (top-left, top-right, bottom-left, bottom-right)
-                const corners = [
-                    { x: 1, y: 1 }, // top-left
-                    { x: N - 2, y: 1 }, // top-right
-                    { x: 1, y: N - 2 }, // bottom-left
-                    { x: N - 2, y: N - 2 }, // bottom-right
-                ];
+                // Always place exit at bottom-right corner
+                const corner = { x: N - 2, y: N - 2 };
 
-                // Try each corner until we find an available spot
-                let exitPlaced = false;
-                for (let corner of corners) {
-                    if (maze[corner.y][corner.x] === 0) {
-                        // Place exit at this corner
-                        maze[corner.y][corner.x] = 6; // New type for chapter exit
+                // Force place at bottom-right corner (clear any existing content)
+                maze[corner.y][corner.x] = 6; // Chapter exit portal type
 
-                        gameEvents.push({
-                            x: corner.x,
-                            y: corner.y,
-                            type: 6, // Chapter exit portal
-                            isCleared: false,
-                            chapterIndex: currentRoomIndex,
-                        });
-                        exitPlaced = true;
-                        break;
-                    }
-                }
-
-                // If no corner is available, force place at bottom-right corner
-                if (!exitPlaced) {
-                    const corner = { x: N - 2, y: N - 2 };
-                    maze[corner.y][corner.x] = 6;
-                    gameEvents.push({
-                        x: corner.x,
-                        y: corner.y,
-                        type: 6,
-                        isCleared: false,
-                        chapterIndex: currentRoomIndex,
-                    });
-                }
+                gameEvents.push({
+                    x: corner.x,
+                    y: corner.y,
+                    type: 6, // Chapter exit portal
+                    isCleared: false,
+                    chapterIndex: currentRoomIndex,
+                });
             }
 
             function nextChapter() {
@@ -1825,9 +1813,13 @@
                                         4: "S",
                                         5: "E",
                                         6: "⭐",
+                                        7: "👑",
                                     }[cellValue];
                                     ctx.fillStyle = "#fff";
-                                    ctx.font = "bold 20px Arial";
+                                    // Tăng kích thước font cho boss
+                                    const fontSize =
+                                        cellValue === 7 ? "24px" : "20px";
+                                    ctx.font = `bold ${fontSize} Arial`;
                                     ctx.textAlign = "center";
                                     ctx.textBaseline = "middle";
                                     ctx.fillText(
@@ -1961,12 +1953,6 @@
                         case 4: // Lấy khiên
                             handleShieldPickup(event);
                             break;
-                        case 6: // Cổng chuyển chương
-                            handleChapterExit(event);
-                            break;
-                        case 7: // Boss Fight - Mr.Phúc
-                            handleBossFight(event);
-                            break;
                         case 5: // Lối thoát cuối game
                             event.isCleared = true;
                             maze[event.y][event.x] = 0;
@@ -1992,34 +1978,10 @@
                             ).onclick = () => restartGame();
                             break;
                         case 6: // Cổng chuyển chương
-                            if (chapterQuestionsCorrect >= 5) {
-                                event.isCleared = true;
-                                maze[event.y][event.x] = 0;
-                                openModalMsg(
-                                    "Hoàn thành chương!",
-                                    `🎉 Xuất sắc! Bạn đã trả lời đúng ${chapterQuestionsCorrect}/10 câu hỏi trong Chương ${currentRoomIndex}/${totalRooms}. Chuẩn bị chuyển sang mê cung chương tiếp theo!`,
-                                    [
-                                        {
-                                            text: "Sang chương tiếp theo",
-                                            action: () => {
-                                                closeModal();
-                                                nextChapter();
-                                            },
-                                        },
-                                    ]
-                                );
-                            } else {
-                                openModalMsg(
-                                    "Chưa đủ điều kiện!",
-                                    `Bạn cần trả lời đúng ít nhất 5/10 câu hỏi để mở cổng chương này. Hiện tại: ${chapterQuestionsCorrect}/10 câu đúng. Hãy tìm thêm các ô câu hỏi!`,
-                                    [
-                                        {
-                                            text: "Tiếp tục khám phá",
-                                            action: "closeModal",
-                                        },
-                                    ]
-                                );
-                            }
+                            handleChapterExit(event);
+                            break;
+                        case 7: // Boss Fight - Mr.Phúc
+                            handleBossFight(event);
                             break;
                     }
                 } else if (event && event.isCleared) {
@@ -2366,21 +2328,31 @@
                                 ]
                             );
                         } else {
-                            // Wrong answer - subtract 1 point from reward instead of losing life
-                            const pointsLost = 1;
-                            player.score = Math.max(
-                                0,
-                                player.score - pointsLost
-                            );
-                            updateHUD();
+                            // Wrong answer - handle based on chosen direction
+                            let penaltyMessage = "";
 
+                            if (chosenDirection === "west") {
+                                // West direction: No penalty at all when wrong
+                                penaltyMessage =
+                                    "Câu trả lời sai! (Ưu thế Tây: không bị trừ điểm)";
+                            } else {
+                                // Other directions: subtract 1 point as usual
+                                const pointsLost = 1;
+                                player.score = Math.max(
+                                    0,
+                                    player.score - pointsLost
+                                );
+                                penaltyMessage = `Câu trả lời sai! Bạn bị trừ ${pointsLost} điểm.`;
+                            }
+
+                            updateHUD();
                             event.currentRetryCount++;
 
                             // Close question modal and show penalty message
                             document.getElementById("modal-question").close();
                             openModalMsg(
                                 "Không Chính Xác!",
-                                `Câu trả lời sai! Bạn bị trừ ${pointsLost} điểm. (Lần thử ${event.currentRetryCount})`,
+                                `${penaltyMessage} (Lần thử ${event.currentRetryCount})`,
                                 [
                                     {
                                         text: "Thử lại",
@@ -2495,7 +2467,7 @@
             // Mở mini-game xúc xắc
             function openDiceRollModal(event) {
                 openModalMsg(
-                    "Mini-game Xúc Xắc Chẵn/Lẻ",
+                    "Mini-game bổ ích 🎲",
                     `Bạn muốn cược giá trị xúc xắc là **Lớn (4, 5, 6)** hay **Nhỏ (1, 2, 3)**? Cược **5 điểm** để tham gia! Điểm hiện tại: ${player.score}`,
                     [
                         {
@@ -2571,20 +2543,12 @@
             // Comic panels (Ver4 inspired)
             const introPanels = [
                 {
-                    art: "📕",
+                    art: "./story_1.png",
                     text: 'Thầy dặn: "Sản phẩm không rõ \nMục đích - Mục tiêu - Ý nghĩa là GAME OVER."',
                 },
                 {
-                    art: "🕵️",
+                    art: "./story_2.png",
                     text: '"Có gián điệp theo dõi game của các em." \nHãy chứng minh giá trị học thuật!',
-                },
-                {
-                    art: "🏭❤️",
-                    text: "Sứ mệnh: tạo GIÁ TRỊ THẶNG DƯ \nnhưng vẫn giữ CÔNG BẰNG XÃ HỘI.",
-                },
-                {
-                    art: "🧭",
-                    text: "Chọn hướng khởi đầu: Đông, Tây, Bắc, Nam. \nMỗi hướng có ưu thế riêng trong hành trình!",
                 },
             ];
 
@@ -2629,7 +2593,25 @@
 
             function typePanel() {
                 const p = introPanels[panelIndex];
-                document.getElementById("art").textContent = p.art;
+                const artElement = document.getElementById("art");
+
+                // Check if art is an image URL (http, data:image, or relative path)
+                if (
+                    p.art.startsWith("http") ||
+                    p.art.startsWith("data:image") ||
+                    p.art.startsWith("./") ||
+                    p.art.endsWith(".png") ||
+                    p.art.endsWith(".jpg") ||
+                    p.art.endsWith(".jpeg") ||
+                    p.art.endsWith(".gif")
+                ) {
+                    // Create image element for URLs
+                    artElement.innerHTML = `<img src="${p.art}" style="max-width: 100%; max-height: 300px; object-fit: contain;">`;
+                } else {
+                    // Use text for emoji or simple text
+                    artElement.textContent = p.art;
+                }
+
                 document.getElementById("caption").textContent = "";
                 let i = 0;
                 clearInterval(typingId);
@@ -2716,7 +2698,7 @@
             function updateSidebarNotes() {
                 const notes = {
                     east: "Đông: Câu hỏi thưởng nhiều điểm (+15 cho mỗi câu đúng).",
-                    west: "Tây: Trả lời sai chỉ bị trừ 5 điểm (không mất mạng).",
+                    west: "Tây: Trả lời sai không bị trừ điểm.",
                     north: "Bắc: Nhiều rương hơn và phần thưởng lớn hơn.",
                     south: "Nam: Vượt tường miễn phí khi bật chế độ vượt tường (Space).",
                 };
@@ -2875,11 +2857,11 @@
                     "⚔️ BOSS FIGHT: Mr.Phúc!",
                     `<div class="boss-fight-container">
                         <div class="battle-log">
-                            <h3>📊 Battle Log & Tính Toán</h3>
+                            <h3>Battle Log</h3>
                             <div id="battle-log-content">${battleLogHtml}</div>
                         </div>
                         <div class="boss-stats">
-                            <div style="font-size: 24px; margin-bottom: 15px;">👑 Mr.Phúc</div>
+                            <div style="font-size: 24px; margin-bottom: 15px;">😏 Mr.Phúc</div>
                             <div style="color: #ef4444; font-size: 18px; margin-bottom: 10px;">❤️ ${
                                 event.bossHealth
                             }/${GAME_CONFIG.BOSS_HEALTH} HP</div>
